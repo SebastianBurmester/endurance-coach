@@ -1,0 +1,11 @@
+[Unit]
+Description=Coach %i: sync activities, FIT files and health data from the connected source
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/%i
+# A sync already running for this athlete (manual backfill, the dashboard's Sync now) makes this run skip.
+ExecStart=/home/pi/%i/.venv/bin/coach sync
+Nice=10
+TimeoutStartSec=2h

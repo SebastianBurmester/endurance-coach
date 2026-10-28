@@ -1,0 +1,10 @@
+[Unit]
+Description=Coach %i: pull the latest code from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/%i
+ExecStart=/bin/sh deploy/pi/update.sh %i
+Nice=10

@@ -1,0 +1,19 @@
+[Unit]
+Description=Coach %i: Claude Code Remote Control (claude.ai/code and the Claude app)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# %i is the checkout's folder in /home/pi (one per athlete). coach.env sets COACH_NAME, COACH_PREFIX and, for an
+# athlete with their own Claude account, CLAUDE_CONFIG_DIR.
+WorkingDirectory=/home/pi/%i
+EnvironmentFile=/home/pi/%i/coach.env
+Environment=PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/pi/.local/bin/claude remote-control --name ${COACH_NAME} --remote-control-session-name-prefix ${COACH_PREFIX}
+# The status screen redraws several times a second; keep it out of the journal (errors still go to stderr).
+StandardOutput=null
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target

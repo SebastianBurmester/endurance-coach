@@ -1,0 +1,15 @@
+.venv/
+data/
+__pycache__/
+*.egg-info/
+plans/
+
+# Per machine / personal: never commit
+athlete.json
+.mcp.json
+.claude/settings.local.json
+
+# Per athlete, written by the app: never commit
+settings.json
+FOCUS.local.md
+coach.env

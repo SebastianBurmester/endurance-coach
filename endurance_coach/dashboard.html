@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,600;1,700&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: Barlow, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --asphalt: #24272b;
+  --asphalt-2: #2e3236;
+  --asphalt-ink: #f2f3f1;
+  --asphalt-muted: #a3a8ad;
+  --col-yellow: #ffd100;
+  --marker-ink: #16181a;
+  --page: #eceeed;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --link: #1c5cab;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --band: rgba(42,120,214,0.10);
+  --spark: #898781;
+  --int-easy: #86b6ef;
+  --int-moderate: #3987e5;
+  --int-hard: #1c5cab;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --tip-bg: #0b0b0b;
+  --tip-ink: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #101213;
+    --asphalt: #1c1f22;
+    --asphalt-2: #262a2e;
+    --surface: #1a1a19;
+    --surface-2: #222220;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --link: #86b6ef;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --band: rgba(57,135,229,0.16);
+    --spark: #898781;
+    --int-easy: #184f95;
+    --int-moderate: #3987e5;
+    --int-hard: #86b6ef;
+    --good-text: #0ca30c;
+    --tip-bg: #f0efec;
+    --tip-ink: #0b0b0b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #101213; --asphalt: #1c1f22; --asphalt-2: #262a2e; --surface: #1a1a19; --surface-2: #222220; --ink: #f0efec; --ink-2: #c3c2b7;
+  --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --link: #86b6ef;
+  --series-1: #3987e5; --series-2: #d95926; --band: rgba(57,135,229,0.16);
+  --int-easy: #184f95; --int-moderate: #3987e5; --int-hard: #86b6ef;
+  --good-text: #0ca30c; --tip-bg: #f0efec; --tip-ink: #0b0b0b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 15px/1.45 var(--body);
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+main { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header.band { background: var(--asphalt); color: var(--asphalt-ink); }
+header.band .wrap { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 16px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 6px; }
+header.band h1 { font: italic 700 28px/1 var(--display); margin: 0; letter-spacing: 0.01em; }
+header.band .meta { color: var(--asphalt-muted); }
+.meta, .muted { color: var(--muted); font-size: 13px; }
+nav.tabs { position: sticky; top: 0; z-index: 10; background: var(--asphalt); box-shadow: 0 1px 0 var(--asphalt-2); }
+nav.tabs .wrap { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
+nav.tabs .wrap::-webkit-scrollbar { display: none; }
+nav.tabs a { position: relative; padding: 10px 12px 13px; color: var(--asphalt-muted); font: 600 18px/1.2 var(--display); white-space: nowrap; }
+nav.tabs a:hover { color: var(--asphalt-ink); text-decoration: none; }
+/* Active tab: a road-marking dash. */
+nav.tabs a[aria-current="page"] { color: var(--asphalt-ink); }
+nav.tabs a[aria-current="page"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 4px; background: var(--col-yellow); transform: skewX(-24deg); }
+:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; border-radius: 4px; }
+nav.tabs a:focus-visible { outline-color: var(--col-yellow); }
+.grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.grid + .grid, .card + .grid, .grid + .card, .card + .card { margin-top: 16px; }
+.grid > .card { margin-top: 0; }
+@media (min-width: 900px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 0; }
+.card h2 { font: 600 19px/1.2 var(--display); color: var(--ink); margin: 0 0 12px; display: flex; justify-content: space-between; gap: 4px 12px; align-items: baseline; flex-wrap: wrap; }
+.card h2 a, .card h2 .muted { font: 500 13px/1.3 var(--body); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font: 600 15px/1.3 var(--display); border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.note { white-space: pre-wrap; margin: 10px 0 0; }
+.note-meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+ul.flags { margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 14px; }
+ul.flags li { margin: 2px 0; }
+.session { border-left: 4px solid var(--int-easy); padding: 2px 0 2px 12px; margin-top: 12px; }
+.session .title { font: 600 20px/1.2 var(--display); }
+.sub { color: var(--ink-2); font-size: 13px; }
+.targets { font-size: 13px; }
+details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-top: 8px; }
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 640px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tile { background: var(--surface-2); border-radius: 6px; padding: 12px; min-width: 0; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font: 600 30px/1.1 var(--display); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .value small { font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 3px; }
+.tile .delta { font-size: 12px; color: var(--muted); min-height: 17px; }
+.delta.good { color: var(--good-text); }
+.delta.bad { color: var(--critical); }
+.tile svg { display: block; width: 100%; height: 36px; margin-top: 6px; overflow: visible; }
+.stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); margin-bottom: 12px; }
+.stats .value { font: 600 30px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stats .value small { font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 2px; }
+.stats .label { color: var(--ink-2); font-size: 12px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin: 4px 0 8px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.legend .line { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+.legend .dash { width: 16px; height: 0; border-top: 2px dashed var(--muted); display: inline-block; }
+.legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend .sw.outline { border: 1.5px solid var(--muted); background: var(--surface-2); }
+.tooltip { position: absolute; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); font-size: 12px; padding: 6px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); opacity: 0; transition: opacity .08s; z-index: 20; }
+.tooltip .k { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); white-space: nowrap; }
+.badge .dot { width: 8px; height: 8px; }
+.changed { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.actual { font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+.empty { color: var(--muted); font-size: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+.int-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.int-legend span::before { content: ""; display: inline-block; width: 4px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 2px; background: var(--c); }
+.err { color: var(--critical); }
+
+/* plan: shared */
+.item { border-left: 4px solid var(--int-easy); padding-left: 10px; }
+.item + .item { margin-top: 6px; }
+.item.easy, .session.easy { border-color: var(--int-easy); }
+.item.moderate, .session.moderate { border-color: var(--int-moderate); }
+.item.hard, .session.hard { border-color: var(--int-hard); }
+.item.rest, .session.rest { border-color: var(--grid); }
+.item .title { font: 600 17px/1.25 var(--display); }
+.title.skipped { text-decoration: line-through; color: var(--muted); }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.pager { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+.pager a, .pager span { display: inline-flex; align-items: center; gap: 4px; font: 600 15px/1.2 var(--display); padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink-2); }
+.pager a:hover { color: var(--ink); text-decoration: none; background: var(--surface-2); }
+.pager span { opacity: .4; }
+a.rowlink { color: inherit; display: grid; border-radius: 8px; }
+a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
+.chev { color: var(--muted); font-size: 18px; line-height: 1; align-self: center; }
+.headline { font: italic 700 32px/1.05 var(--display); margin: 0; }
+.subhead { color: var(--ink-2); font-size: 14px; margin-top: 4px; }
+.section-label { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 18px 0 6px; }
+
+/* plan: week rows */
+.wk { grid-template-columns: minmax(0, 1fr) auto minmax(150px, auto) 14px; grid-template-areas: "t shape nums chev"; gap: 6px 16px; align-items: center; padding: 10px 8px; border-bottom: 1px solid var(--grid); }
+.wk:last-child { border-bottom: 0; }
+.wk.current { background: var(--surface-2); }
+.wk .t { grid-area: t; min-width: 0; }
+.wk .t b { display: block; font: 600 18px/1.2 var(--display); }
+.wk .shape { grid-area: shape; }
+.wk .nums { grid-area: nums; text-align: right; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.wk .chev { grid-area: chev; }
+@media (max-width: 600px) {
+  .wk { grid-template-columns: auto minmax(0, 1fr) 14px; grid-template-areas: "t t chev" "shape nums chev"; }
+}
+.shape { display: grid; grid-template-columns: repeat(7, 12px); gap: 3px; align-items: end; }
+.shape .c { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 40px; }
+.shape .b { width: 10px; border-radius: 3px 3px 0 0; background: var(--int-easy); }
+.shape .b.moderate { background: var(--int-moderate); }
+.shape .b.hard { background: var(--int-hard); }
+.shape .b.none { background: var(--grid); border-radius: 1px; }
+.shape .m { font-size: 10px; line-height: 12px; height: 12px; color: var(--ink-2); }
+
+/* plan: timeline */
+.timeline { position: relative; margin: 0 8px 6px 34px; }
+.tl-lane { position: relative; height: 42px; margin-bottom: 4px; }
+.tl-block { position: absolute; top: 0; bottom: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; overflow: hidden; color: var(--ink); font-size: 12px; line-height: 1.3; white-space: nowrap; }
+.tl-block:hover { text-decoration: none; border-color: var(--ink-2); }
+.tl-block.current { box-shadow: inset 0 0 0 2px var(--series-1); }
+.tl-block b, .tl-block span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.tl-block b { font: 600 14px/1.25 var(--display); }
+.tl-block span { color: var(--ink-2); }
+.tl-mark { position: absolute; top: -2px; bottom: -2px; border-left: 1px solid var(--ink-2); pointer-events: none; }
+.tl-mark.event { border-left-style: dashed; }
+
+/* plan: week view */
+.dayrow { grid-template-columns: 56px minmax(0, 1fr) 14px; gap: 12px; padding: 12px 8px; border-bottom: 1px solid var(--grid); }
+.dayrow:last-child { border-bottom: 0; }
+.dayrow.today { background: var(--surface-2); }
+.dayrow.past { opacity: .85; }
+.dayrow .when { font-size: 13px; color: var(--ink-2); }
+.dayrow .when b { display: block; color: var(--ink); font: 600 18px/1.1 var(--display); }
+.split { display: flex; gap: 2px; height: 12px; border-radius: 6px; overflow: hidden; margin: 6px 0; }
+.split span { background: var(--c); }
+
+/* plan: session view */
+.kicker { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.targets-box { background: var(--surface-2); border-left: 4px solid var(--int-easy); border-radius: 8px; padding: 10px 12px; font-weight: 600; }
+.targets-box.moderate { border-color: var(--int-moderate); }
+.targets-box.hard { border-color: var(--int-hard); }
+.rich { font-size: 14px; }
+.rich p { margin: 0 0 8px; }
+.rich .step { display: grid; grid-template-columns: minmax(80px, 140px) 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--grid); }
+.rich .step.plain { grid-template-columns: 1fr; }
+.rich .step b { font-weight: 600; }
+.rich ul, .rich ol { margin: 0 0 8px; padding-left: 20px; }
+.rich li { margin: 3px 0; }
+.rich h4 { font-size: 13px; margin: 12px 0 4px; color: var(--ink-2); }
+.rich table { margin: 4px 0 10px; }
+.meter { margin: 10px 0; }
+.meter .lbl { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.meter .lbl b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.meter .track { position: relative; height: 10px; background: var(--grid); border-radius: 5px; margin-top: 4px; }
+.meter .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--series-1); border-radius: 5px; }
+.meter .target { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; }
+.ride { padding: 10px 0; border-bottom: 1px solid var(--grid); }
+.ride:last-child { border-bottom: 0; }
+.sport { display: inline-block; font: 600 11px/1.5 var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--border); margin-right: 6px; vertical-align: 2px; }
+
+/* The col marker: the white post with the yellow cap at every kilometre of a mountain pass.
+   Here it counts down to the next race (or the end of the current block). */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+.borne { width: 116px; text-align: center; color: var(--marker-ink); font-family: var(--display); }
+.borne .cap { background: var(--col-yellow); border: 2px solid var(--marker-ink); border-bottom: 0; border-radius: 58px 58px 0 0; padding: 16px 8px 6px; font-weight: 700; font-size: 15px; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.borne .post { background: #fff; border: 2px solid var(--marker-ink); border-radius: 0 0 3px 3px; padding: 4px 6px 8px; }
+.borne b { display: block; font-size: 52px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.borne .unit { display: block; font-size: 15px; font-weight: 600; line-height: 1.1; }
+.borne small { display: block; font: 500 11px/1.3 var(--body); color: #43474b; margin-top: 5px; }
+@media (max-width: 420px) { .borne { width: 100px; } .borne b { font-size: 44px; } }
+.banner { border-left: 4px solid var(--warning); }
+.banner.bad { border-left-color: var(--critical); }
+.choice { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 6px; }
+.option { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface-2); }
+.option.active { border-color: var(--series-1); box-shadow: inset 0 0 0 1px var(--series-1); }
+.option h3 { margin: 0 0 4px; font: 600 20px/1.2 var(--display); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.option p { margin: 6px 0; font-size: 14px; color: var(--ink-2); }
+.state { font: 600 12px/1.4 var(--body); letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
+.state.on { color: var(--good-text); }
+.field { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.field input { flex: 1 1 200px; min-width: 0; font: 15px/1.3 var(--body); padding: 8px 10px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.btn { font: 600 15px/1.2 var(--body); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+.btn.link { border: 0; background: none; padding: 8px 4px; color: var(--link); }
+.btn:disabled { opacity: .5; cursor: default; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 10px; overflow: hidden; margin-top: 6px; flex-wrap: wrap; }
+.seg button { font: 600 16px/1.2 var(--display); padding: 9px 16px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--series-1); color: #fff; }
+.steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-2); }
+.steps li { margin: 3px 0; }
+.msg { margin-top: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="band"><div class="wrap">
+  <h1 id="title">Coach</h1>
+  <div class="meta" id="meta">Loading…</div>
+</div></header>
+<nav class="tabs" aria-label="Sections"><div class="wrap" id="tabs"></div></nav>
+<main>
+  <div id="app"></div>
+</main>
+<div class="tooltip" id="tip"></div>
+<script>
+"use strict";
+const TABS = () => [["today", "Today"], ["plan", "Plan"], ["health", "Health"], ["load", "Load"],
+  ["sessions", cycling() ? "Rides" : "Sessions"], ["settings", "Settings"]];
+const cycling = () => DATA?.app?.focus === "road_cycling";
+const watch = () => DATA?.app?.provider_label || "Watch";
+const SPORT = { swim: "Swim", bike: "Bike", run: "Run", brick: "Brick", strength: "Strength", mobility: "Mobility", multisport: "Multisport", rest: "Rest", other: "Other" };
+const sportTag = (sp) => sp && sp !== "rest" ? `<span class="sport">${esc(SPORT[sp] || sp)}</span>` : "";
+const pace = (sec) => { if (!sec) return "–"; const r = Math.round(sec); return `${Math.floor(r / 60)}:${pad(r % 60)}`; };
+const STATUS = {
+  green: { label: "Ready", color: "var(--good)", icon: "✓" },
+  amber: { label: "Caution", color: "var(--warning)", icon: "!" },
+  red: { label: "Recover", color: "var(--critical)", icon: "✕" },
+};
+const DAY_STATUS = {
+  done: { label: "Done", color: "var(--good)", icon: "✓", mark: "✓", ink: "var(--good-text)" },
+  over: { label: "Done, more than planned", color: "var(--good)", icon: "✓", mark: "✓", ink: "var(--good-text)" },
+  partial: { label: "Partial", color: "var(--warning)", icon: "◐", mark: "◐", ink: "var(--ink-2)" },
+  missed: { label: "Missed", color: "var(--critical)", icon: "✕", mark: "✕", ink: "var(--critical)" },
+  skipped: { label: "Skipped", color: "var(--muted)", icon: "–", mark: "–", ink: "var(--muted)" },
+  unplanned: { label: "Unplanned", color: "var(--series-1)", icon: "+", mark: "+", ink: "var(--ink-2)" },
+  pending: { label: "Today", color: "var(--muted)", icon: "•", mark: "", ink: "var(--muted)" },
+};
+const INTENSITY = { rest: "Rest", easy: "Easy", moderate: "Moderate", hard: "Hard" };
+const RANK = { rest: 0, easy: 1, moderate: 2, hard: 3 };
+const ZONES = [["Z1 Active recovery", 0, 0.55], ["Z2 Endurance", 0.56, 0.75], ["Z3 Tempo", 0.76, 0.90], ["Z4 Threshold", 0.91, 1.05],
+  ["Z5 VO2max", 1.06, 1.20], ["Z6 Anaerobic", 1.21, 1.50], ["Z7 Neuromuscular", 1.51, null]];
+const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_MS = 864e5;
+let DATA = null, POST = [], lastHash = null;
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (v, d = 0) => {
+  if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  const s = Number(v).toFixed(d);
+  return /^-0(\.0+)?$/.test(s) ? s.slice(1) : s;
+};
+const pad = (n) => String(n).padStart(2, "0");
+const pd = (s) => new Date(s + "T12:00:00");
+const iso = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+const addDays = (s, n) => { const dt = pd(s); dt.setDate(dt.getDate() + n); return iso(dt); };
+const mondayOf = (s) => addDays(s, -((pd(s).getDay() + 6) % 7));
+const dshort = (s) => pd(s).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+const dlong = (s) => pd(s).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+const wday = (s) => WD[(pd(s).getDay() + 6) % 7];
+const hm = (min) => { if (!min) return ""; const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h${m ? pad(m) : ""}` : `${m}min`; };
+const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const typeName = (t) => (t || "other").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const sessTss = (s) => s.tss ?? s.tss_est ?? null;
+const todayKey = () => DATA.generated.slice(0, 10);
+const secs = (t) => (t || "").split(":").reduce((a, x) => a * 60 + Number(x), 0);
+
+// ---------------------------------------------------------------- plan index
+const planDays = () => DATA.plan.weeks.flatMap((w) => w.days);
+const dayOf = (key) => planDays().find((x) => x.date === key);
+const weekOf = (key) => DATA.plan.weeks.find((w) => w.week_of === key);
+const blockById = (id) => DATA.plan.blocks.find((b) => String(b.id) === String(id));
+const currentWeek = () => DATA.plan.weeks.find((w) => w.days.some((x) => x.is_today));
+// Re-planning can leave overlapping blocks; the most recently saved one wins.
+const weekBlock = (w) => blockById(Math.max(...(w.block_ids.length ? w.block_ids : [-1])));
+const blockOfDay = (key) => [...DATA.plan.blocks].sort((a, b) => b.id - a.id).find((b) => b.start_date <= key && key <= b.end_date);
+function blockWeekNo(b, weekKey) {
+  const s = pd(mondayOf(b.start_date));
+  return { n: Math.round((pd(weekKey) - s) / (7 * DAY_MS)) + 1, total: Math.round((pd(mondayOf(b.end_date)) - s) / (7 * DAY_MS)) + 1 };
+}
+const blockWeeks = (b) => DATA.plan.weeks.filter((w) => w.week_of <= b.end_date && addDays(w.week_of, 6) >= b.start_date);
+const hardest = (ss) => ss.reduce((a, s) => (RANK[s.intensity] ?? 1) > (RANK[a] ?? -1) ? s.intensity : a, null);
+const activeSessions = (x) => x.sessions.filter((s) => s.status !== "skipped" && s.type !== "rest");
+
+function badge(st) {
+  const key = (st || "").split(" ")[0];
+  let s = DAY_STATUS[key];
+  if (!s) return "";
+  // Volume done but the key intensity wasn't: show it as a partial, not a success.
+  if (st.includes("intensity missing")) s = { ...DAY_STATUS.partial, label: "Done, intensity missing" };
+  const miss = st.match(/\((\w[\w/]*) missing\)/);
+  if (miss) s = { ...DAY_STATUS.partial, label: `Partial: ${miss[1]} missing` };
+  return `<span class="badge"><span class="dot" style="background:${s.color}"></span>${s.icon} ${esc(s.label)}</span>`;
+}
+function dayMark(st) {
+  const key = (st || "").split(" ")[0];
+  const s = st && st.includes("intensity missing") ? DAY_STATUS.partial : DAY_STATUS[key];
+  return s && s.mark ? `<span style="color:${s.ink}">${s.mark}</span>` : "";
+}
+
+// ---------------------------------------------------------------- tooltip
+const tip = document.getElementById("tip");
+function showTip(html, x, y) { tip.innerHTML = html; tip.style.left = x + "px"; tip.style.top = (y - 10) + "px"; tip.style.opacity = 1; }
+function hideTip() { tip.style.opacity = 0; }
+
+// ---------------------------------------------------------------- charts (inline SVG)
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs, parent) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function niceTicks(lo, hi, n = 4) {
+  const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0) || mag * 10;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(Math.round(v * 100) / 100);
+  return out;
+}
+const mount = (id, fn) => POST.push(() => { const c = document.getElementById(id); if (c) fn(c); });
+
+/* Line chart with history (solid) and projection (dashed), shared crosshair + tooltip.
+   opts: { rows, series:[{key,label,color}], height, zeroLine, todayKey, events, tipRows, band, connect, dots, decimals } */
+function lineChart(container, opts) {
+  container.innerHTML = "";
+  const W = container.clientWidth || 600, H = opts.height || 200, m = { l: 34, r: 8, t: 8, b: 22 };
+  const rows = opts.rows, n = rows.length;
+  const vals = rows.flatMap((r) => opts.series.map((s) => r[s.key])).filter((v) => v !== null && v !== undefined);
+  if (!n || !vals.length) { container.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+  if (opts.band) vals.push(...opts.band);
+  let lo = Math.min(...vals, opts.zeroLine ? 0 : Infinity), hi = Math.max(...vals, opts.zeroLine ? 0 : -Infinity);
+  if (!opts.zeroLine) lo = Math.max(0, lo - (hi - lo) * 0.1 - (hi === lo ? 1 : 0));
+  hi += (hi - lo) * 0.08 || 1;
+  const ticks = niceTicks(lo, hi); lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+  const x = (i) => m.l + (i / Math.max(1, n - 1)) * (W - m.l - m.r);
+  const y = (v) => m.t + (1 - (v - lo) / (hi - lo || 1)) * (H - m.t - m.b);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": opts.aria || "" }, container);
+
+  if (opts.band) el("rect", { x: m.l, width: W - m.l - m.r, y: y(opts.band[1]), height: Math.max(0, y(opts.band[0]) - y(opts.band[1])), fill: "var(--band)" }, svg);
+  for (const t of ticks) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: t === 0 && opts.zeroLine ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    const tx = el("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); tx.textContent = t;
+  }
+  // x labels: first of each month
+  let lastMonth = null;
+  rows.forEach((r, i) => {
+    const mo = r.date.slice(0, 7);
+    if (mo !== lastMonth && i > 2 && i < n - 3) {
+      const t = el("text", { x: x(i), y: H - 4, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11 }, svg);
+      t.textContent = pd(r.date).toLocaleDateString(undefined, { month: "short" });
+    }
+    lastMonth = mo;
+  });
+  const ti = rows.findIndex((r) => r.date === opts.todayKey);
+  if (ti >= 0 && ti < n - 1) {
+    el("line", { x1: x(ti), x2: x(ti), y1: m.t, y2: H - m.b, stroke: "var(--axis)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: x(ti) + 4, y: m.t + 10, fill: "var(--muted)", "font-size": 11 }, svg); t.textContent = "today → plan";
+  }
+  for (const ev of opts.events || []) {
+    const i = rows.findIndex((r) => r.date === ev.date);
+    if (i < 0) continue;
+    el("line", { x1: x(i), x2: x(i), y1: m.t, y2: H - m.b, stroke: "var(--ink-2)", "stroke-width": 1 }, svg);
+    // Bottom of the plot, so it never collides with the "today → plan" label at the top.
+    const t = el("text", { x: x(i) - 4, y: H - m.b - 6, "text-anchor": "end", fill: "var(--ink-2)", "font-size": 11 }, svg); t.textContent = ev.name;
+  }
+  for (const s of opts.series) {
+    const seg = (pred, dashed) => {
+      let d = "", pen = false;
+      rows.forEach((r, i) => {
+        const v = r[s.key];
+        if (v === null || v === undefined) { if (!opts.connect) pen = false; return; }
+        if (!pred(r, i)) { pen = false; return; }
+        d += (pen ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1); pen = true;
+      });
+      if (d) el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", "stroke-dasharray": dashed ? "5 4" : "none" }, svg);
+    };
+    seg((r, i) => !r.projected || (i > 0 && !rows[i - 1].projected), false);
+    seg((r, i) => r.projected || (i < n - 1 && rows[i + 1].projected), true);
+    if (opts.dots) rows.forEach((r, i) => { if (r[s.key] !== null && r[s.key] !== undefined) el("circle", { cx: x(i), cy: y(r[s.key]), r: 3, fill: s.color, stroke: "var(--surface)", "stroke-width": 1.5 }, svg); });
+    const li = ti >= 0 ? ti : (() => { for (let i = n - 1; i >= 0; i--) if (rows[i][s.key] !== null && rows[i][s.key] !== undefined) return i; return -1; })();
+    if (li >= 0 && rows[li][s.key] !== null && rows[li][s.key] !== undefined && opts.endLabels) {
+      el("circle", { cx: x(li), cy: y(rows[li][s.key]), r: 4, fill: s.color, stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    }
+  }
+  // hover layer
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--ink-2)", "stroke-width": 1, opacity: 0 }, svg);
+  const dots = opts.series.map((s) => el("circle", { r: 4, fill: s.color, stroke: "var(--surface)", "stroke-width": 2, opacity: 0 }, svg));
+  const hit = el("rect", { x: m.l, y: 0, width: W - m.l - m.r, height: H, fill: "transparent" }, svg);
+  const move = (ev) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - box.left) * (W / box.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / (W - m.l - m.r)) * (n - 1))));
+    const r = rows[i];
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("opacity", 1);
+    opts.series.forEach((s, k) => {
+      const v = r[s.key];
+      if (v === null || v === undefined) { dots[k].setAttribute("opacity", 0); return; }
+      dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(v)); dots[k].setAttribute("opacity", 1);
+    });
+    const lines = (opts.tipRows || opts.series.map((s) => [s.label, s.key, s.color])).map(([label, key, color]) =>
+      `<div>${color ? `<span class="k" style="background:${color}"></span>` : ""}${esc(label)}: <b>${fmt(r[key], opts.decimals || 0)}</b></div>`).join("");
+    const cbox = container.getBoundingClientRect();
+    showTip(`<div><b>${esc(dshort(r.date))}</b>${r.projected ? " · planned" : ""}</div>${lines}`,
+      cbox.left + window.scrollX + (x(i) / W) * box.width, cbox.top + window.scrollY + (Math.min(...opts.series.map((s) => r[s.key] ?? hi).map(y)) / H) * box.height);
+  };
+  const leave = () => { cross.setAttribute("opacity", 0); dots.forEach((d) => d.setAttribute("opacity", 0)); hideTip(); };
+  hit.addEventListener("mousemove", move); hit.addEventListener("touchmove", move, { passive: true });
+  hit.addEventListener("touchstart", move, { passive: true });
+  hit.addEventListener("mouseleave", leave); hit.addEventListener("touchend", () => setTimeout(leave, 1500));
+}
+
+/* Weekly TSS: planned as an outlined target bar, done as a solid bar inside it. Click a week to open it.
+   items: [{ key, planned, actual, current, href, tip }] */
+function weekBars(container, items, opts = {}) {
+  container.innerHTML = "";
+  const W = container.clientWidth || 600, H = opts.height || 150, m = { l: 34, r: 8, t: 8, b: 22 }, n = items.length;
+  if (!n) return;
+  const hi0 = Math.max(10, ...items.map((w) => Math.max(w.planned || 0, w.actual || 0)));
+  const ticks = niceTicks(0, hi0 * 1.05), hi = ticks[ticks.length - 1];
+  const band = (W - m.l - m.r) / n, bw = Math.max(6, Math.min(30, band * 0.68));
+  const y = (v) => m.t + (1 - v / hi) * (H - m.t - m.b), base = y(0);
+  const top = (cx, w, v) => { const h = base - y(v), r = Math.min(4, w / 2, h); return `M${cx - w / 2},${base}V${base - h + r}Q${cx - w / 2},${base - h} ${cx - w / 2 + r},${base - h}H${cx + w / 2 - r}Q${cx + w / 2},${base - h} ${cx + w / 2},${base - h + r}V${base}Z`; };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": opts.aria || "Weekly TSS" }, container);
+  for (const t of ticks) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    const tx = el("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); tx.textContent = t;
+  }
+  // Date labels: the current week always, others only where they don't crowd a neighbour.
+  const cx = (i) => m.l + band * (i + 0.5), cur = items.findIndex((w) => w.current), placed = cur >= 0 ? [cur] : [];
+  items.forEach((w, i) => { if (placed.every((j) => Math.abs(cx(i) - cx(j)) >= 56)) placed.push(i); });
+  for (const i of placed) {
+    const t = el("text", { x: cx(i), y: H - 4, "text-anchor": "middle", fill: i === cur ? "var(--ink)" : "var(--muted)", "font-size": 11, "font-weight": i === cur ? 600 : 400 }, svg);
+    t.textContent = i === cur ? "this wk" : dshort(items[i].key);
+  }
+  items.forEach((w, i) => {
+    if (w.planned) el("path", { d: top(cx(i), bw, w.planned), fill: "var(--surface-2)", stroke: "var(--muted)", "stroke-width": 1.25 }, svg);
+    if (w.actual) el("path", { d: top(cx(i), Math.max(3, bw - 8), w.actual), fill: "var(--series-1)", stroke: "var(--surface)", "stroke-width": 1.5 }, svg);
+    const hit = el("rect", { x: m.l + band * i, y: 0, width: band, height: H, fill: "transparent", style: w.href ? "cursor:pointer" : "" }, svg);
+    const show = () => {
+      const box = svg.getBoundingClientRect();
+      showTip(w.tip, box.left + window.scrollX + (cx(i) / W) * box.width, box.top + window.scrollY + (y(Math.max(w.planned || 0, w.actual || 0)) / H) * box.height);
+    };
+    hit.addEventListener("mousemove", show); hit.addEventListener("touchstart", show, { passive: true });
+    hit.addEventListener("mouseleave", hideTip); hit.addEventListener("touchend", () => setTimeout(hideTip, 1500));
+    if (w.href) hit.addEventListener("click", () => { hideTip(); location.hash = w.href; });
+  });
+}
+const BAR_LEGEND = '<div class="legend"><span class="key"><span class="sw outline"></span>Planned TSS</span><span class="key"><span class="sw" style="background:var(--series-1)"></span>Done TSS</span></div>';
+
+function planWeekItems(weeks) {
+  return weeks.map((w) => {
+    const started = w.days[0].is_past || w.days[0].is_today;
+    return {
+      key: w.week_of, planned: w.planned_tss || null, actual: started ? w.actual_tss : null, current: w.days.some((x) => x.is_today),
+      href: `plan/week/${w.week_of}`,
+      tip: `<b>Week of ${esc(dshort(w.week_of))}</b><div>Planned: ${fmt(w.planned_tss)} TSS · ${fmt(w.planned_h, 1)} h</div>${started ? `<div>Done: ${fmt(w.actual_tss)} TSS · ${fmt(w.actual_h, 1)} h</div>` : ""}${w.completion_pct !== null && w.completion_pct !== undefined ? `<div>Completion ${w.completion_pct}%</div>` : ""}`,
+    };
+  });
+}
+
+function sparkline(svgHost, rows, key, unit, decimals) {
+  const pts = rows.map((r, i) => [i, r[key]]).filter(([, v]) => v !== null && v !== undefined);
+  svgHost.innerHTML = "";
+  if (pts.length < 2) return;
+  const W = 200, H = 36, n = rows.length;
+  const vs = pts.map((p) => p[1]); let lo = Math.min(...vs), hi = Math.max(...vs); if (hi === lo) { hi += 1; lo -= 1; }
+  const x = (i) => (i / (n - 1)) * W, y = (v) => 3 + (1 - (v - lo) / (hi - lo)) * (H - 6);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", "aria-hidden": "true" }, svgHost);
+  el("path", { d: pts.map(([i, v], k) => (k ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(""), fill: "none", stroke: "var(--spark)", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }, svg);
+  const [li, lv] = pts[pts.length - 1];
+  const dot = document.createElement("div");
+  svgHost.style.position = "relative";
+  dot.style.cssText = `position:absolute;width:8px;height:8px;border-radius:50%;background:var(--series-1);box-shadow:0 0 0 2px var(--surface-2);left:calc(${(x(li) / W) * 100}% - 4px);top:${y(lv) - 4}px`;
+  svgHost.appendChild(dot);
+  svgHost.onmousemove = svgHost.ontouchstart = (ev) => {
+    const box = svgHost.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - box.left) / box.width;
+    const i = Math.max(0, Math.min(n - 1, Math.round(px * (n - 1))));
+    const r = rows[i];
+    showTip(`<b>${esc(dshort(r.date))}</b> · ${r[key] === null || r[key] === undefined ? "no data" : fmt(r[key], decimals) + " " + unit}`, box.left + window.scrollX + px * box.width, box.top + window.scrollY);
+  };
+  svgHost.onmouseleave = hideTip; svgHost.ontouchend = () => setTimeout(hideTip, 1500);
+}
+
+function meter(label, actual, planned, unit, dec = 0) {
+  const max = Math.max(actual || 0, planned || 0) || 1;
+  return `<div class="meter"><div class="lbl"><span>${esc(label)}</span><span><b>${fmt(actual, dec)}</b> of ${fmt(planned, dec)}${esc(unit)}</span></div>
+    <div class="track"><div class="fill" style="width:${((actual || 0) / max) * 100}%"></div>${planned ? `<div class="target" style="left:${(planned / max) * 100}%"></div>` : ""}</div></div>`;
+}
+
+// Workout text from the coach: markdown-ish tables, lists, headings and "Label: text" steps.
+function richText(src) {
+  const lines = String(src || "").replace(/\r/g, "").split("\n");
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  const cells = (r) => r.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+  let out = "", i = 0;
+  while (i < lines.length) {
+    const l = lines[i].trim();
+    if (!l) { i++; continue; }
+    if (l.startsWith("|")) {
+      const rows = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) rows.push(lines[i++].trim());
+      const sepAt = rows.findIndex((r) => /^[\s|:-]+$/.test(r));
+      const head = sepAt === 1 ? cells(rows[0]) : null;
+      const body = rows.filter((r, k) => k !== sepAt && !(head && k === 0)).map(cells);
+      out += `<div class="scroll"><table>${head ? `<thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead>` : ""}<tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+      continue;
+    }
+    if (/^([-*•]|\d+[.)])\s+/.test(l)) {
+      const ordered = /^\d/.test(l), items = [];
+      while (i < lines.length && /^([-*•]|\d+[.)])\s+/.test(lines[i].trim())) items.push(lines[i++].trim().replace(/^([-*•]|\d+[.)])\s+/, ""));
+      out += `<${ordered ? "ol" : "ul"}>${items.map((t) => `<li>${inline(t)}</li>`).join("")}</${ordered ? "ol" : "ul"}>`;
+      continue;
+    }
+    if (/^#{1,6}\s/.test(l)) { out += `<h4>${inline(l.replace(/^#+\s*/, ""))}</h4>`; i++; continue; }
+    const m = l.match(/^([A-Za-zÄÖÜäöüß][\w ()/+&-]{0,28}):\s+(.+)$/);
+    out += m ? `<div class="step"><b>${inline(m[1])}</b><span>${inline(m[2])}</span></div>` : `<div class="step plain">${inline(l)}</div>`;
+    i++;
+  }
+  return `<div class="rich">${out}</div>`;
+}
+
+// ---------------------------------------------------------------- shared pieces
+function changedLine(s) {
+  if (!["adjusted", "skipped", "added"].includes(s.status)) return "";
+  return `<div class="changed">✎ ${esc(s.status)}${s.change_reason ? ": " + esc(s.change_reason) : ""}${s.originally?.title ? ` (was: ${esc(s.originally.title)})` : ""}</div>`;
+}
+function sessionBits(s) {
+  const t = sessTss(s);
+  return [typeName(s.type), hm(s.duration_min), t ? `${s.tss ? "" : "~"}${fmt(t)} TSS` : ""].filter(Boolean).join(" · ");
+}
+function sessionLine(s) {
+  return `<div class="item ${s.intensity}"><div class="title ${s.status === "skipped" ? "skipped" : ""}">${sportTag(s.sport)}${esc(s.title)}</div><div class="sub">${esc(sessionBits(s))}</div>${s.targets ? `<div class="targets">${esc(s.targets)}</div>` : ""}${changedLine(s)}</div>`;
+}
+const actualLine = (x) => x.actual.length ? `<div class="actual">Done: ${x.actual.map((a) => esc(`${SPORT[a.sport] || a.sport} ${hm(a.minutes)}${a.tss ? " · TSS " + fmt(a.tss) : ""}${a.if ? " · IF " + fmt(a.if, 2) : ""}`)).join("; ")}</div>` : "";
+
+function weekRow(w, maxT) {
+  const b = weekBlock(w), bw = b ? blockWeekNo(b, w.week_of) : null;
+  const cur = w.days.some((x) => x.is_today), started = w.days[0].is_past || cur;
+  const shape = w.days.map((x) => {
+    const ss = activeSessions(x), t = ss.reduce((a, s) => a + (sessTss(s) || 0), 0), cls = hardest(ss);
+    const h = ss.length ? Math.max(4, Math.round((t / maxT) * 26)) : 2;
+    const label = `${wday(x.date)}: ${ss.map((s) => s.title).join(", ") || "rest"}`;
+    return `<span class="c" title="${esc(label)}"><span class="b ${ss.length ? cls : "none"}" style="height:${h}px"></span><span class="m">${dayMark(x.status)}</span></span>`;
+  }).join("");
+  const nums = started ? `${fmt(w.actual_h, 1)} / ${fmt(w.planned_h, 1)} h · ${fmt(w.actual_tss)} / ${fmt(w.planned_tss)} TSS` : `${fmt(w.planned_h, 1)} h · ${fmt(w.planned_tss)} TSS`;
+  const status = w.completion_pct !== null && w.completion_pct !== undefined ? `${w.completion_pct}% completed${cur ? " so far" : ""}` : cur ? "this week" : "";
+  return `<a class="wk rowlink ${cur ? "current" : ""}" href="#plan/week/${w.week_of}">
+    <span class="t"><b>${esc(dshort(w.week_of))} – ${esc(dshort(addDays(w.week_of, 6)))}</b><span class="sub">${b ? esc(b.name) + (bw ? ` · week ${bw.n} of ${bw.total}` : "") : "No block"}</span></span>
+    <span class="shape" aria-hidden="true">${shape}</span>
+    <span class="nums">${esc(nums)}<br><span class="muted">${esc(status)}</span></span><span class="chev">›</span></a>`;
+}
+const maxDayTss = (weeks) => Math.max(50, ...weeks.flatMap((w) => w.days.map((x) => activeSessions(x).reduce((a, s) => a + (sessTss(s) || 0), 0))));
+
+function crumbs(parts) {
+  return `<nav class="crumbs" aria-label="Breadcrumb">${parts.map(([label, href], i) =>
+    (href && i < parts.length - 1 ? `<a href="#${href}">${esc(label)}</a>` : `<span>${esc(label)}</span>`) + (i < parts.length - 1 ? "<span>›</span>" : "")).join("")}</nav>`;
+}
+function pager(prev, next) {
+  const a = (x, dir) => x ? `<a href="#${x[1]}">${dir < 0 ? "‹ " : ""}${esc(x[0])}${dir > 0 ? " ›" : ""}</a>` : `<span>${dir < 0 ? "‹" : "›"}</span>`;
+  return `<div class="pager">${a(prev, -1)}${a(next, 1)}</div>`;
+}
+
+// ---------------------------------------------------------------- col marker
+function borne(d) {
+  const ev = (d.events || [])[0];
+  let cap, num, unit, lines;
+  if (ev) {
+    cap = ev.name; num = ev.days_to_go; unit = num === 1 ? "day to go" : "days to go";
+    lines = [dshort(ev.date), ev.projected_tsb !== null && ev.projected_tsb !== undefined ? `form ${ev.projected_tsb > 0 ? "+" : ""}${fmt(ev.projected_tsb)} on the day` : ""];
+  } else {
+    const b = blockOfDay(todayKey());
+    if (!b) return "";
+    const bw = blockWeekNo(b, mondayOf(todayKey()));
+    cap = b.name; num = Math.round((pd(b.end_date) - pd(todayKey())) / DAY_MS) + 1; unit = num === 1 ? "day left" : "days left";
+    lines = [`week ${bw.n} of ${bw.total}`, `ends ${dshort(b.end_date)}`];
+  }
+  return `<div class="borne" role="img" aria-label="${esc(`${cap}: ${num} ${unit}`)}"><div class="cap">${esc(cap)}</div>
+    <div class="post"><b>${num}</b><span class="unit">${esc(unit)}</span><small>${lines.filter(Boolean).map(esc).join("<br>")}</small></div></div>`;
+}
+
+// ---------------------------------------------------------------- Today
+function todayCard(d) {
+  const r = d.readiness || {}, st = STATUS[r.status] || { label: "No data", color: "var(--muted)", icon: "?" };
+  const today = dayOf(todayKey());
+  const sess = (today?.sessions || []).map((s) => `<div class="session ${s.intensity}"><div class="title">${sportTag(s.sport)}${esc(s.title)}</div><div class="sub">${esc(sessionBits(s))}</div>${s.targets ? `<div class="targets">${esc(s.targets)}</div>` : ""}${changedLine(s)}</div>`).join("");
+  const note = d.note ? `<div class="note">${esc(d.note.text)}</div><div class="note-meta">Coach note · ${esc(d.note.kind)} · ${esc(d.note.updated.replace("T", " "))}</div>` : '<div class="note-meta">No coach note yet. Run /checkin in a session.</div>';
+  const flags = (r.flags || []).map((f) => `<li>${esc(f)}</li>`).join("") + (r.positives || []).map((f) => `<li>${esc(f)}</li>`).join("");
+  return `<section class="card"><div class="hero"><div>
+    <h1 class="headline">${esc(dlong(todayKey()))}</h1>
+    <div class="row" style="margin-top:10px"><span class="pill"><span class="dot" style="background:${st.color}"></span>${st.icon} ${esc(st.label)}</span>
+    ${(d.events || []).slice(1, 3).map((e) => `<span class="pill">${esc(e.name)} in ${e.days_to_go} d</span>`).join("")}</div>
+    ${note}</div>${borne(d)}</div>${flags ? `<ul class="flags">${flags}</ul>` : ""}
+    ${sess ? `${sess}<div style="margin-top:8px"><a href="#plan/day/${todayKey()}">Open today's workout ›</a></div>` : '<div class="empty" style="margin-top:12px">Nothing planned today.</div>'}</section>`;
+}
+
+function comingUpCard(d) {
+  const next = [1, 2, 3].map((k) => dayOf(addDays(todayKey(), k))).filter(Boolean);
+  const rows = next.map((x) => `<a class="dayrow rowlink" href="#plan/day/${x.date}"><span class="when"><b>${wday(x.date)}</b>${esc(dshort(x.date))}</span>
+    <span>${x.sessions.map(sessionLine).join("") || '<span class="sub">No session planned</span>'}</span><span class="chev">›</span></a>`).join("");
+  const w = currentWeek(), b = blockOfDay(todayKey());
+  let progress = "";
+  if (b) {
+    const bw = blockWeekNo(b, mondayOf(todayKey()));
+    const frac = Math.min(1, Math.max(0, (pd(todayKey()) - pd(b.start_date)) / (pd(b.end_date) - pd(b.start_date) + DAY_MS)));
+    progress += `<div class="meter"><div class="lbl"><span><a href="#plan/block/${b.id}">${esc(b.name)}</a></span><span>week <b>${bw.n}</b> of ${bw.total}</span></div><div class="track"><div class="fill" style="width:${frac * 100}%"></div></div></div>`;
+  }
+  if (w && w.planned_tss) progress += meter("This week: hours", w.actual_h, w.planned_h, " h", 1) + meter("This week: TSS", w.actual_tss, w.planned_tss, "");
+  return `<section class="card"><h2>Coming up <a href="#plan">Full plan ›</a></h2>${progress}
+    ${rows ? `<div style="margin-top:8px">${rows}</div>` : '<div class="empty">Nothing planned for the next days. Ask the coach with /training-plan.</div>'}</section>`;
+}
+
+function healthTiles(d, prefix) {
+  const rows = d.health.slice(-30), all = d.health, r = d.readiness || {};
+  const last = (k) => { for (let i = rows.length - 1; i >= 0; i--) if (rows[i][k] !== null && rows[i][k] !== undefined) return rows[i][k]; return null; };
+  const avg = (k, n) => mean(all.slice(-n - 1, -1).map((x) => x[k]).filter((v) => v !== null && v !== undefined));
+  const delta = (k, n, upGood, unit, dec = 0) => {
+    const v = last(k), a = avg(k, n); if (v === null || a === null) return { text: "", cls: "" };
+    const dv = v - a; if (Math.abs(dv) < 10 ** -dec / 2) return { text: `= ${n}-day avg`, cls: "" };
+    return { text: `${dv > 0 ? "▲" : "▼"} ${fmt(Math.abs(dv), dec)}${unit} vs ${n}-day avg`, cls: (dv > 0) === upGood ? "good" : "bad" };
+  };
+  const hrvRange = r.hrv?.watch_normal_range?.[0] ? r.hrv.watch_normal_range : r.hrv?.normal_range_60d;
+  const coros = d.app.provider === "coros";
+  const tiles = [
+    { label: "HRV last night", key: "hrv", unit: "ms", dec: 0, d: delta("hrv", 30, true, " ms"), extra: hrvRange ? `normal ${fmt(hrvRange[0])}–${fmt(hrvRange[1])}` : "" },
+    { label: "Resting HR", key: "rhr", unit: "bpm", dec: 0, d: delta("rhr", 30, false, " bpm") },
+    { label: "Sleep", key: "sleep_h", unit: "h", dec: 1, d: delta("sleep_h", 7, true, " h", 1), extra: last("sleep_score") !== null ? `score ${fmt(last("sleep_score"))}` : "" },
+    coros ? { label: "COROS recovery", key: "recovery_pct", unit: "%", dec: 0, value: r.recovery?.pct ?? last("recovery_pct"), d: { text: r.recovery?.level || "", cls: "" } }
+      : { label: "Body Battery (wake/high)", key: "bb_high", unit: "", dec: 0, value: r.recovery?.wake ?? last("bb_high"), d: delta("bb_high", 7, true, "") },
+    { label: "Stress (avg)", key: "stress_avg", unit: "", dec: 0, d: delta("stress_avg", 30, false, "") },
+    { label: "Weight", key: "weight_kg", unit: "kg", dec: 1, value: d.weight_kg, d: coros ? { text: "", cls: "" } : delta("weight_kg", 30, false, " kg", 1), extra: d.athlete.wkg ? `${fmt(d.athlete.wkg, 2)} W/kg at FTP ${fmt(d.athlete.ftp)}` : coros ? "from the COROS profile" : "" },
+  ];
+  tiles.forEach((t, i) => mount(`${prefix}${i}`, (c) => sparkline(c, rows, t.key, t.unit, t.dec)));
+  return `<div class="tiles">${tiles.map((t, i) => `<div class="tile"><div class="label">${esc(t.label)}</div><div class="value">${fmt(t.value ?? last(t.key), t.dec)}<small>${esc(t.unit)}</small></div>
+    <div class="delta ${t.d.cls}">${esc([t.d.text, t.extra].filter(Boolean).join(" · "))}</div><div id="${prefix}${i}"></div></div>`).join("")}</div>`;
+}
+
+function loadToday(d) { return d.load.find((r) => r.date === todayKey()) || d.load.filter((r) => !r.projected).slice(-1)[0] || {}; }
+function loadStats(d) {
+  const t = loadToday(d);
+  return `<div class="stats">${[["Fitness (CTL)", t.ctl, 0], ["Fatigue (ATL)", t.atl, 0], ["Form (TSB)", t.tsb, 0], ["Ramp / week", t.ramp_7d, 1]]
+    .map(([l, v, dd]) => `<div><div class="value">${fmt(v, dd)}</div><div class="label">${esc(l)}</div></div>`).join("")}</div>`;
+}
+
+function viewToday(d) {
+  mount("pmc-mini", (c) => lineChart(c, { rows: d.load.filter((r) => !r.projected).slice(-42), height: 140, endLabels: true, aria: "Fitness and fatigue, last 6 weeks",
+    series: [{ key: "ctl", label: "Fitness (CTL)", color: "var(--series-1)" }, { key: "atl", label: "Fatigue (ATL)", color: "var(--series-2)" }],
+    tipRows: [["Fitness", "ctl", "var(--series-1)"], ["Fatigue", "atl", "var(--series-2)"], ["Form", "tsb"], ["TSS", "tss"]] }));
+  return `${sourceBanner(d)}<div class="grid two">${todayCard(d)}${comingUpCard(d)}</div>
+    <div class="grid two"><section class="card"><h2>Health · last 30 days <a href="#health">Trends ›</a></h2>${healthTiles(d, "spk-t")}</section>
+    <section class="card"><h2>Training load <a href="#load">Details ›</a></h2>${loadStats(d)}
+      <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Fitness (CTL)</span><span class="key"><span class="line" style="background:var(--series-2)"></span>Fatigue (ATL)</span></div>
+      <div class="chart" id="pmc-mini"></div></section></div>`;
+}
+
+// ---------------------------------------------------------------- Plan: overview
+function timeline(blocks, weeks) {
+  if (!blocks.length) return "";
+  const start = pd(weeks[0].week_of), span = weeks.length * 7 * DAY_MS;
+  const pos = (key) => Math.min(100, Math.max(0, ((pd(key) - start) / span) * 100));
+  const lanes = [];
+  for (const b of [...blocks].sort((a, c) => a.start_date.localeCompare(c.start_date))) {
+    let lane = lanes.find((l) => l[l.length - 1].end_date < b.start_date);
+    if (!lane) lanes.push(lane = []);
+    lane.push(b);
+  }
+  const cur = blockOfDay(todayKey());
+  const html = lanes.map((l) => `<div class="tl-lane">${l.map((b) => {
+    const left = pos(b.start_date), right = pos(addDays(b.end_date, 1));
+    return `<a class="tl-block ${cur && cur.id === b.id ? "current" : ""}" href="#plan/block/${b.id}" style="left:${left}%;width:calc(${right - left}% - 2px)" title="${esc(`${b.name} · ${dshort(b.start_date)} – ${dshort(b.end_date)}`)}"><b>${esc(b.name)}</b><span>${esc(b.phase || "")}</span></a>`;
+  }).join("")}</div>`).join("");
+  const marks = `<div class="tl-mark" style="left:${pos(todayKey()) + (0.5 / 7 / weeks.length) * 100}%" title="Today"></div>` +
+    (DATA.events || []).filter((e) => e.date <= addDays(weeks[weeks.length - 1].week_of, 6)).map((e) => `<div class="tl-mark event" style="left:${pos(e.date) + (0.5 / 7 / weeks.length) * 100}%" title="${esc(e.name)}"></div>`).join("");
+  return `<div class="timeline">${html}${marks}</div>`;
+}
+
+function viewPlan(d) {
+  const p = d.plan;
+  if (!p.has_sessions) return `<section class="card"><h2>Training plan</h2><div class="empty">No plan saved yet. Ask the coach for one with /training-plan, and it shows up here: blocks, weeks and every workout.</div></section>`;
+  const weeks = p.weeks, maxT = maxDayTss(weeks);
+  const planned = weeks.filter((w) => w.planned_tss);
+  const first = planned[0]?.week_of, last = planned[planned.length - 1]?.week_of;
+  const future = weeks.filter((w) => !w.days[6].is_past);
+  const totalH = future.reduce((a, w) => a + w.planned_h, 0), totalT = future.reduce((a, w) => a + w.planned_tss, 0);
+  const done = weeks.filter((w) => w.completion_pct !== null && w.completion_pct !== undefined);
+  const comp = done.length ? Math.round(mean(done.map((w) => w.completion_pct))) : null;
+  const ev = (d.events || []).slice(1).map((e) => `<span class="pill">${esc(e.name)}, ${esc(dshort(e.date))}, in ${e.days_to_go} d</span>`).join("");
+  mount("plan-bars", (c) => weekBars(c, planWeekItems(weeks), { height: 150, aria: "Planned and done TSS per week" }));
+  const blocks = [...p.blocks].sort((a, c) => a.start_date.localeCompare(c.start_date)).map((b) => {
+    const bws = blockWeeks(b), cur = blockOfDay(todayKey())?.id === b.id;
+    return `<a class="wk rowlink ${cur ? "current" : ""}" href="#plan/block/${b.id}" style="grid-template-columns:minmax(0,1fr) auto 14px;grid-template-areas:'t nums chev'">
+      <span class="t"><b>${esc(b.name)}</b><span class="sub">${esc([b.phase, `${dshort(b.start_date)} – ${dshort(b.end_date)}`, b.goal].filter(Boolean).join(" · "))}</span></span>
+      <span class="nums">${bws.length} wk · ${fmt(bws.reduce((a, w) => a + w.planned_h, 0), 0)} h<br><span class="muted">${fmt(bws.reduce((a, w) => a + w.planned_tss, 0))} TSS</span></span><span class="chev">›</span></a>`;
+  }).join("");
+  return `<section class="card"><div class="hero" style="margin-bottom:12px"><div>
+      <h1 class="headline">Training plan</h1><div class="subhead">${esc(dshort(first))} to ${esc(dshort(addDays(last, 6)))}</div>
+      ${ev ? `<div class="row" style="margin-top:10px">${ev}</div>` : ""}
+      <div class="stats" style="margin-top:16px"><div><div class="value">${planned.length}</div><div class="label">Weeks planned</div></div>
+        <div><div class="value">${fmt(totalH, 0)}<small>h</small></div><div class="label">Still to train</div></div>
+        <div><div class="value">${fmt(totalT)}</div><div class="label">TSS still to go</div></div>
+        <div><div class="value">${comp === null ? "–" : comp + "<small>%</small>"}</div><div class="label">Completion so far</div></div></div>
+      </div>${borne(d)}</div>
+      ${timeline(p.blocks, weeks)}
+      <div class="chart" id="plan-bars"></div>${BAR_LEGEND}</section>
+    ${blocks ? `<section class="card"><h2>Blocks</h2>${blocks}</section>` : ""}
+    <section class="card"><h2>Weeks <span class="int-legend"><span style="--c:var(--int-easy)">Easy</span><span style="--c:var(--int-moderate)">Moderate</span><span style="--c:var(--int-hard)">Hard</span></span></h2>
+      ${weeks.map((w) => weekRow(w, maxT)).join("")}</section>`;
+}
+
+// ---------------------------------------------------------------- Plan: block
+function viewBlock(d, id) {
+  const b = blockById(id);
+  if (!b) return notFound("This block is not in the plan anymore.");
+  const weeks = blockWeeks(b), maxT = maxDayTss(DATA.plan.weeks);
+  const started = weeks.filter((w) => w.days[0].is_past || w.days[0].is_today);
+  const isCur = b.start_date <= todayKey() && todayKey() <= b.end_date;
+  const bw = isCur ? blockWeekNo(b, mondayOf(todayKey())) : null;
+  const frac = Math.min(1, Math.max(0, (pd(todayKey()) - pd(b.start_date)) / (pd(b.end_date) - pd(b.start_date) + DAY_MS)));
+  const sorted = [...DATA.plan.blocks].sort((a, c) => a.start_date.localeCompare(c.start_date)), i = sorted.findIndex((x) => x.id === b.id);
+  mount("block-bars", (c) => weekBars(c, planWeekItems(weeks), { height: 140, aria: "Planned and done TSS per week in this block" }));
+  return `${crumbs([["Plan", "plan"], [b.name]])}
+    ${pager(sorted[i - 1] && [sorted[i - 1].name, `plan/block/${sorted[i - 1].id}`], sorted[i + 1] && [sorted[i + 1].name, `plan/block/${sorted[i + 1].id}`])}
+    <section class="card">
+      <div class="kicker">${b.phase ? `<span class="pill">${esc(typeName(b.phase))}</span>` : ""}<span>${esc(dshort(b.start_date))} – ${esc(dshort(b.end_date))}</span>${bw ? `<span>· week ${bw.n} of ${bw.total}</span>` : ""}</div>
+      <h1 class="headline">${esc(b.name)}</h1>
+      ${b.goal ? `<div class="subhead">${esc(b.goal)}</div>` : ""}
+      <div class="meter"><div class="lbl"><span>Progress</span><span><b>${Math.round(frac * 100)}%</b></span></div><div class="track"><div class="fill" style="width:${frac * 100}%"></div></div></div>
+      <div class="stats" style="margin-top:12px"><div><div class="value">${weeks.length}</div><div class="label">Weeks</div></div>
+        <div><div class="value">${fmt(weeks.reduce((a, w) => a + w.planned_h, 0), 0)}<small>h</small></div><div class="label">Planned</div></div>
+        <div><div class="value">${fmt(mean(weeks.map((w) => w.planned_tss)))}</div><div class="label">Avg TSS / week</div></div>
+        <div><div class="value">${fmt(started.reduce((a, w) => a + w.actual_tss, 0))}<small>/ ${fmt(started.reduce((a, w) => a + w.planned_tss, 0))}</small></div><div class="label">TSS done so far</div></div></div>
+      <div class="chart" id="block-bars"></div>${BAR_LEGEND}
+      ${b.notes ? `<div class="section-label">Coach notes</div>${richText(b.notes)}` : ""}</section>
+    <section class="card"><h2>Weeks in this block</h2>${weeks.map((w) => weekRow(w, maxT)).join("")}</section>`;
+}
+
+// ---------------------------------------------------------------- Plan: week
+function viewWeek(d, key) {
+  const w = weekOf(mondayOf(key));
+  if (!w) return notFound("This week is outside the plan shown here.");
+  const b = weekBlock(w), bw = b ? blockWeekNo(b, w.week_of) : null;
+  const ws = DATA.plan.weeks, i = ws.indexOf(w);
+  const started = w.days[0].is_past || w.days[0].is_today;
+  const mins = { easy: 0, moderate: 0, hard: 0 };
+  w.days.forEach((x) => activeSessions(x).forEach((s) => { mins[s.intensity] = (mins[s.intensity] || 0) + (s.duration_min || 0); }));
+  const tot = mins.easy + mins.moderate + mins.hard;
+  const keyDays = w.days.filter((x) => activeSessions(x).some((s) => s.intensity === "hard")).length;
+  const split = tot ? `<div class="split" role="img" aria-label="Planned time by intensity">${["easy", "moderate", "hard"].filter((k) => mins[k]).map((k) => `<span style="--c:var(--int-${k});flex:${mins[k]}"></span>`).join("")}</div>
+    <div class="int-legend">${["easy", "moderate", "hard"].map((k) => `<span style="--c:var(--int-${k})">${INTENSITY[k]} ${hm(mins[k]) || "0"} · ${Math.round((mins[k] / tot) * 100)}%</span>`).join("")}</div>` : "";
+  const days = w.days.map((x) => `<a class="dayrow rowlink ${x.is_today ? "today" : ""} ${x.is_past ? "past" : ""}" href="#plan/day/${x.date}">
+    <span class="when"><b>${wday(x.date)}</b>${esc(dshort(x.date))}</span>
+    <span>${x.sessions.map(sessionLine).join("") || (x.actual.length ? "" : `<span class="sub">${x.is_past ? "—" : "No session planned"}</span>`)}${actualLine(x)}${x.status && x.status !== "pending" ? `<div style="margin-top:4px">${badge(x.status)}</div>` : ""}</span>
+    <span class="chev">›</span></a>`).join("");
+  const crumb = [["Plan", "plan"]];
+  if (b) crumb.push([b.name, `plan/block/${b.id}`]);
+  crumb.push([`Week of ${dshort(w.week_of)}`]);
+  return `${crumbs(crumb)}
+    ${pager(ws[i - 1] && [`Week of ${dshort(ws[i - 1].week_of)}`, `plan/week/${ws[i - 1].week_of}`], ws[i + 1] && [`Week of ${dshort(ws[i + 1].week_of)}`, `plan/week/${ws[i + 1].week_of}`])}
+    <section class="card">
+      <div class="kicker">${b ? `<a href="#plan/block/${b.id}">${esc(b.name)}</a>${bw ? ` · week ${bw.n} of ${bw.total}` : ""}` : "No block"}</div>
+      <h1 class="headline">${esc(dshort(w.week_of))} – ${esc(dshort(addDays(w.week_of, 6)))}</h1>
+      <div class="stats" style="margin-top:12px">
+        <div><div class="value">${started ? `${fmt(w.actual_h, 1)}<small>/ ${fmt(w.planned_h, 1)} h</small>` : `${fmt(w.planned_h, 1)}<small>h</small>`}</div><div class="label">${started ? "Hours done / planned" : "Hours planned"}</div></div>
+        <div><div class="value">${started ? `${fmt(w.actual_tss)}<small>/ ${fmt(w.planned_tss)}</small>` : fmt(w.planned_tss)}</div><div class="label">${started ? "TSS done / planned" : "TSS planned"}</div></div>
+        <div><div class="value">${keyDays}</div><div class="label">Hard days</div></div>
+        <div><div class="value">${w.completion_pct === null || w.completion_pct === undefined ? "–" : w.completion_pct + "<small>%</small>"}</div><div class="label">${w.days.some((x) => x.is_today) ? "Completion so far" : "Completion"}</div></div></div>
+      ${split}</section>
+    <section class="card"><h2>Days</h2>${days}</section>`;
+}
+
+// ---------------------------------------------------------------- Plan: day / workout
+function sessionDetail(s) {
+  const t = sessTss(s), h = (s.duration_min || 0) / 60;
+  const estIf = t && h ? Math.sqrt(t / (h * 100)) : null;
+  const ath = DATA.athlete, ftp = ath.ftp, thr = ath.run_threshold_s_km;
+  // What the planned intensity means in this sport's own units.
+  const est = s.sport === "bike" && estIf && ftp ? [fmt(estIf * ftp) + "<small>W</small>", `Est. NP (FTP ${fmt(ftp)} W)`]
+    : s.sport === "run" && estIf && thr ? [pace(thr / estIf) + "<small>/km</small>", `Est. pace (threshold ${pace(thr)})`] : null;
+  const orig = s.originally ? [s.originally.title, typeName(s.originally.type), hm(s.originally.duration_min), s.originally.tss ? `${fmt(s.originally.tss)} TSS` : ""].filter(Boolean).join(" · ") : "";
+  return `<section class="card">
+    <div class="kicker"><span class="pill"><span class="dot" style="background:var(--int-${s.intensity === "rest" ? "easy" : s.intensity})"></span>${esc(INTENSITY[s.intensity] || "Easy")}</span>${sportTag(s.sport)}<span>${esc(typeName(s.type))}</span>${s.slot > 1 ? "<span>· 2nd session</span>" : ""}${s.coros_ref ? "<span>· on the COROS calendar ✓</span>" : ""}</div>
+    <h1 class="headline ${s.status === "skipped" ? "title skipped" : ""}">${esc(s.title)}</h1>
+    ${s.type === "rest" ? "" : `<div class="stats" style="margin-top:12px">
+      <div><div class="value">${hm(s.duration_min) || "–"}</div><div class="label">Duration</div></div>
+      <div><div class="value">${t ? (s.tss ? "" : "~") + fmt(t) : "–"}</div><div class="label">${s.tss ? "TSS" : "TSS (estimated)"}</div></div>
+      <div><div class="value">${estIf ? fmt(estIf, 2) : "–"}</div><div class="label">Intensity factor</div></div>
+      ${est ? `<div><div class="value">${est[0]}</div><div class="label">${esc(est[1])}</div></div>` : ""}</div>`}
+    ${["adjusted", "skipped", "added"].includes(s.status) ? `<div class="targets-box" style="font-weight:400;margin-top:8px">✎ <b>${esc(typeName(s.status))}</b>${s.change_reason ? `: ${esc(s.change_reason)}` : ""}${orig ? `<div class="sub" style="margin-top:4px">Originally: ${esc(orig)}</div>` : ""}</div>` : ""}
+    ${s.purpose ? `<div class="section-label">Purpose</div><div>${esc(s.purpose)}</div>` : ""}
+    ${s.targets ? `<div class="section-label">Targets</div><div class="targets-box ${s.intensity}">${esc(s.targets)}</div>` : ""}
+    ${s.structure ? `<div class="section-label">Workout</div>${richText(s.structure)}` : (s.type !== "rest" ? '<div class="section-label">Workout</div><div class="empty">No detailed structure yet. The coach adds it in the week review before the week starts.</div>' : "")}
+  </section>`;
+}
+
+function actualCard(x) {
+  if (!x.actual.length) return x.is_past && activeSessions(x).length ? `<section class="card"><h2>What you did</h2><div class="empty">Nothing recorded.</div>${x.status ? `<div style="margin-top:6px">${badge(x.status)}</div>` : ""}</section>` : "";
+  const ss = activeSessions(x);
+  const pMin = ss.reduce((a, s) => a + (s.duration_min || 0), 0), pTss = ss.reduce((a, s) => a + (sessTss(s) || 0), 0);
+  const aMin = x.actual.reduce((a, r) => a + (r.minutes || 0), 0), aTss = x.actual.reduce((a, r) => a + (r.tss || 0), 0);
+  const rides = x.actual.map((a) => `<div class="ride"><div class="row"><b>${sportTag(a.sport)}${esc(a.name)}</b></div>
+    <div class="sub">${esc([a.type, hm(a.minutes), a.km ? `${fmt(a.km, a.sport === "swim" ? 2 : 1)} km` : "", a.tss ? `TSS ${fmt(a.tss)}` : "", a.if ? `IF ${fmt(a.if, 2)}` : "", a.avg_hr ? `HR ${fmt(a.avg_hr)}` : ""].filter(Boolean).join(" · "))}</div></div>`).join("");
+  return `<section class="card"><h2>What you did ${x.status ? badge(x.status) : ""}</h2>
+    ${ss.length ? meter("Duration (min)", Math.round(aMin), Math.round(pMin), "") + meter("TSS", Math.round(aTss), Math.round(pTss), "") : ""}${rides}</section>`;
+}
+
+function zonesCard() {
+  const ftp = DATA.athlete.ftp;
+  if (!ftp) return "";
+  const rows = ZONES.map(([n, lo, hi]) => `<tr><td>${esc(n)}</td><td class="num">${hi === null ? `> ${Math.round(lo * 100)}%` : `${Math.round(lo * 100)}–${Math.round(hi * 100)}%`}</td><td class="num">${hi === null ? `> ${Math.round(lo * ftp)}` : `${Math.round(lo * ftp)}–${Math.round(hi * ftp)}`} W</td></tr>`).join("");
+  return `<section class="card"><details><summary>Power zones at FTP ${fmt(ftp)} W</summary><table style="margin-top:8px"><tbody>${rows}</tbody></table></details></section>`;
+}
+
+function viewDay(d, key) {
+  const x = dayOf(key);
+  if (!x) return notFound("This day is outside the plan shown here.");
+  const w = weekOf(mondayOf(key)), b = blockOfDay(key);
+  const prev = dayOf(addDays(key, -1)), next = dayOf(addDays(key, 1));
+  const crumb = [["Plan", "plan"]];
+  if (b) crumb.push([b.name, `plan/block/${b.id}`]);
+  crumb.push([`Week of ${dshort(w.week_of)}`, `plan/week/${w.week_of}`], [`${wday(key)} ${dshort(key)}`]);
+  const sessions = x.sessions.map(sessionDetail).join("") || `<section class="card"><div class="kicker">${esc(dlong(key))}</div><h1 class="headline">No session planned</h1><div class="subhead">A free day in the plan.</div></section>`;
+  return `${crumbs(crumb)}
+    ${pager(prev && [`${wday(prev.date)} ${dshort(prev.date)}`, `plan/day/${prev.date}`], next && [`${wday(next.date)} ${dshort(next.date)}`, `plan/day/${next.date}`])}
+    <div class="kicker" style="margin:0 0 8px">${esc(dlong(key))}${x.is_today ? " · today" : ""}</div>
+    ${sessions}${actualCard(x)}${x.sessions.some((s) => s.sport === "bike" || s.sport === "brick") ? zonesCard() : ""}`;
+}
+
+const notFound = (msg) => `${crumbs([["Plan", "plan"], ["Not found"]])}<section class="card"><div class="empty">${esc(msg)}</div></section>`;
+
+// ---------------------------------------------------------------- Health
+function viewHealth(d) {
+  const r = d.readiness || {}, st = STATUS[r.status] || { label: "No data", color: "var(--muted)", icon: "?" };
+  const flags = (r.flags || []).map((f) => `<li>${esc(f)}</li>`).join("") + (r.positives || []).map((f) => `<li>${esc(f)}</li>`).join("");
+  const metrics = [
+    r.hrv?.watch_normal_range?.[0] ? { key: "hrv", label: "HRV (overnight)", unit: "ms", dec: 0, band: r.hrv.watch_normal_range, note: `shaded: your current ${watch()} normal range` }
+      : { key: "hrv", label: "HRV (overnight)", unit: "ms", dec: 0, band: r.hrv?.normal_range_60d, note: "shaded: your 60-day normal range" },
+    { key: "rhr", label: "Resting HR", unit: "bpm", dec: 0 },
+    { key: "sleep_h", label: "Sleep", unit: "h", dec: 1 },
+    { key: "sleep_score", label: "Sleep score", unit: "", dec: 0 },
+    { key: "stress_avg", label: "Stress (daily avg)", unit: "", dec: 0 },
+    ...(d.app.provider === "coros" ? [{ key: "recovery_pct", label: "COROS recovery (morning)", unit: "%", dec: 0, connect: true, dots: true }]
+      : [{ key: "bb_high", label: "Body Battery (daily high)", unit: "", dec: 0 }, { key: "weight_kg", label: "Weight", unit: "kg", dec: 1, connect: true, dots: true }]),
+  ];
+  const cards = metrics.map((m) => {
+    const vals = d.health.map((h) => h[m.key]).filter((v) => v !== null && v !== undefined);
+    const last7 = mean(d.health.slice(-7).map((h) => h[m.key]).filter((v) => v !== null && v !== undefined));
+    const all = mean(vals);
+    mount("hc-" + m.key, (c) => lineChart(c, { rows: d.health, height: 130, band: m.band, connect: m.connect, dots: m.dots, endLabels: true, decimals: m.dec, aria: `${m.label}, last 90 days`,
+      series: [{ key: m.key, label: m.label, color: "var(--series-1)" }] }));
+    return `<section class="card"><h2>${esc(m.label)}${m.unit ? ` (${esc(m.unit)})` : ""}<span class="muted">7-day ${fmt(last7, m.dec)} · 90-day ${fmt(all, m.dec)}</span></h2>
+      <div class="chart" id="hc-${m.key}"></div>${m.note ? `<div class="muted">${esc(m.note)}</div>` : ""}</section>`;
+  }).join("");
+  return `<div class="grid two"><section class="card"><h2>Readiness today</h2><div class="row"><span class="pill"><span class="dot" style="background:${st.color}"></span>${st.icon} ${esc(st.label)}</span></div>
+      ${flags ? `<ul class="flags">${flags}</ul>` : '<div class="empty" style="margin-top:8px">No flags.</div>'}</section>
+    <section class="card"><h2>Last 30 days</h2>${healthTiles(d, "spk-h")}</section></div>
+    <div class="grid two">${cards}</div>`;
+}
+
+// ---------------------------------------------------------------- Load
+function viewLoad(d) {
+  const tk = todayKey(), t = loadToday(d);
+  const proj = d.load.some((r) => r.projected);
+  const byWeek = new Map();
+  for (const r of d.load) {
+    const k = mondayOf(r.date), e = byWeek.get(k) || { key: k, done: 0, proj: 0, anyDone: false };
+    if (r.projected) e.proj += r.tss || 0; else { e.done += r.tss || 0; e.anyDone = true; }
+    byWeek.set(k, e);
+  }
+  const items = [...byWeek.values()].map((e) => {
+    const pw = weekOf(e.key);
+    const planned = pw ? pw.planned_tss : (e.anyDone ? null : Math.round(e.proj));
+    return { key: e.key, planned: planned || null, actual: e.anyDone ? Math.round(e.done) : null, current: e.key === mondayOf(tk), href: pw ? `plan/week/${e.key}` : null,
+      tip: `<b>Week of ${esc(dshort(e.key))}</b>${e.anyDone ? `<div>Done: ${fmt(e.done)} TSS</div>` : ""}${planned ? `<div>Planned: ${fmt(planned)} TSS</div>` : ""}` };
+  });
+  const table = d.load.filter((r, i) => i % 7 === 0 || r.date === tk).map((r) =>
+    `<tr><td>${esc(r.date)}${r.projected ? " (plan)" : ""}</td><td class="num">${fmt(r.tss)}</td><td class="num">${fmt(r.ctl)}</td><td class="num">${fmt(r.atl)}</td><td class="num">${fmt(r.tsb)}</td></tr>`).join("");
+  const evs = (d.events || []).map((e) => ({ date: e.date, name: e.name }));
+  mount("pmc", (c) => lineChart(c, { rows: d.load, height: 210, todayKey: tk, events: evs, endLabels: true, aria: "Fitness and fatigue over time",
+    series: [{ key: "ctl", label: "Fitness (CTL)", color: "var(--series-1)" }, { key: "atl", label: "Fatigue (ATL)", color: "var(--series-2)" }],
+    tipRows: [["Fitness", "ctl", "var(--series-1)"], ["Fatigue", "atl", "var(--series-2)"], ["Form", "tsb"], ["TSS", "tss"]] }));
+  mount("tsb", (c) => lineChart(c, { rows: d.load, height: 120, todayKey: tk, zeroLine: true, aria: "Form over time",
+    series: [{ key: "tsb", label: "Form (TSB)", color: "var(--series-1)" }], tipRows: [["Form (TSB)", "tsb", "var(--series-1)"], ["TSS", "tss"]] }));
+  mount("load-bars", (c) => weekBars(c, items, { height: 150, aria: "TSS per week" }));
+  const acwr = t.ctl ? t.atl / t.ctl : null;
+  return `<section class="card"><h2>Training load · today</h2>${loadStats(d)}
+      <div class="muted">ACWR ${fmt(acwr, 2)} (sweet spot 0.8–1.3) · all sports combined</div>
+      <div class="muted">Thresholds: bike FTP ${d.athlete.ftp ? fmt(d.athlete.ftp) + " W" : "not set"} · run ${d.athlete.run_threshold_pace ? d.athlete.run_threshold_pace + "/km" : "not set"} · swim CSS ${d.athlete.css_pace ? d.athlete.css_pace + "/100 m" : "not set"}</div></section>
+    <section class="card"><h2>Fitness and fatigue</h2>
+      <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Fitness (CTL)</span><span class="key"><span class="line" style="background:var(--series-2)"></span>Fatigue (ATL)</span>${proj ? '<span class="key"><span class="dash"></span>Projected from plan</span>' : ""}</div>
+      <div class="chart" id="pmc"></div>
+      <div class="legend" style="margin-top:14px">Form (TSB): fresh above 0, productive −10 to −30</div>
+      <div class="chart" id="tsb"></div></section>
+    <section class="card"><h2>TSS per week</h2><div class="chart" id="load-bars"></div>${BAR_LEGEND}
+      <details><summary>Data table (weekly)</summary><div class="scroll"><table><thead><tr><th>Date</th><th class="num">TSS</th><th class="num">CTL</th><th class="num">ATL</th><th class="num">TSB</th></tr></thead><tbody>${table}</tbody></table></div></details></section>`;
+}
+
+// ---------------------------------------------------------------- Sessions
+const activityLink = (a, text) => DATA.app.provider === "garmin"
+  ? `<a href="https://connect.garmin.com/modern/activity/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" style="color:var(--ink)">${text}</a>` : text;
+
+function viewRides(d) {
+  const rides = d.recent_sessions.filter((a) => a.sport === "bike");
+  const others = d.recent_sessions.length - rides.length;
+  const otherLine = others ? `<div class="muted" style="margin-top:6px">${others} other sessions (runs, swims, strength…) count toward load but are not listed here.</div>` : "";
+  if (!rides.length) return `<section class="card"><h2>Rides</h2><div class="empty">No rides in the last 6 weeks.</div>${otherLine}</section>`;
+  const since7 = addDays(todayKey(), -6);
+  const sum = (list) => ({ n: list.length, h: list.reduce((a, r) => a + secs(r.time), 0) / 3600, km: list.reduce((a, r) => a + (r.distance_km || 0), 0), tss: list.reduce((a, r) => a + (r.tss || 0), 0), elev: list.reduce((a, r) => a + (r.elevation_m || 0), 0) });
+  const s7 = sum(rides.filter((r) => r.start.slice(0, 10) >= since7)), s42 = sum(rides);
+  const stat = (s, label) => `<div><div class="value">${s.n}<small>rides</small></div><div class="label">${esc(label)}: ${fmt(s.h, 1)} h · ${fmt(s.km)} km · ${fmt(s.elev)} m · ${fmt(s.tss)} TSS</div></div>`;
+  const rows = rides.map((a) => {
+    const day = a.start.slice(0, 10), inPlan = !!dayOf(day);
+    return `<tr><td style="white-space:nowrap">${inPlan ? `<a href="#plan/day/${day}">${esc(dshort(day))}</a>` : esc(dshort(day))}</td>
+      <td>${activityLink(a, esc(a.name || ""))}</td>
+      <td class="num">${esc(a.time || "")}</td><td class="num">${fmt(a.distance_km)}</td><td class="num">${fmt(a.elevation_m)}</td>
+      <td class="num">${fmt(a.avg_power)}</td><td class="num">${fmt(a.np)}</td><td class="num">${fmt(a.if, 2)}</td><td class="num">${fmt(a.tss)}</td>
+      <td class="num">${fmt(a.avg_hr)}</td><td class="num">${fmt(a.ef, 2)}</td><td class="num">${a.decoupling_pct === undefined ? "–" : fmt(a.decoupling_pct, 1) + "%"}</td></tr>`;
+  }).join("");
+  return `<section class="card"><h2>Rides</h2><div class="stats">${stat(s7, "Last 7 days")}${stat(s42, "Last 6 weeks")}</div>${otherLine}</section>
+    <section class="card"><h2>Last 6 weeks <span class="muted">date opens the plan day${d.app.provider === "garmin" ? " · name opens Garmin Connect" : ""}</span></h2><div class="scroll"><table><thead><tr>
+      <th>Date</th><th>Ride</th><th class="num">Time</th><th class="num">km</th><th class="num">Elev m</th><th class="num">Avg W</th><th class="num">NP</th><th class="num">IF</th><th class="num">TSS</th><th class="num">HR</th><th class="num">EF</th><th class="num">Decoupl.</th>
+    </tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+function viewSessions(d) {
+  if (cycling()) return viewRides(d);
+  const list = d.recent_sessions;
+  if (!list.length) return '<section class="card"><h2>Sessions</h2><div class="empty">No sessions in the last 6 weeks.</div></section>';
+  const since7 = addDays(todayKey(), -6);
+  const sum = (xs) => ({ n: xs.length, h: xs.reduce((a, r) => a + secs(r.time), 0) / 3600, tss: xs.reduce((a, r) => a + (r.tss || 0), 0) });
+  const bySport = (xs) => ["swim", "bike", "run"].map((sp) => { const t = xs.filter((r) => r.sport === sp); return t.length ? `${SPORT[sp]} ${t.length}× ${fmt(sum(t).h, 1)} h · ${fmt(t.reduce((a, r) => a + (r.distance_km || 0), 0), sp === "swim" ? 1 : 0)} km` : ""; }).filter(Boolean).join(" · ");
+  const w7 = list.filter((r) => r.start.slice(0, 10) >= since7);
+  const stat = (xs, label) => { const s = sum(xs); return `<div><div class="value">${s.n}<small>sessions</small></div><div class="label">${esc(label)}: ${fmt(s.h, 1)} h · ${fmt(s.tss)} TSS<br>${esc(bySport(xs))}</div></div>`; };
+  const speed = (a) => a.sport === "run" ? (a.pace_km ? a.pace_km + "/km" : "–") : a.sport === "swim" ? (a.pace_100m ? a.pace_100m + "/100m" : "–") : a.avg_speed_kmh ? fmt(a.avg_speed_kmh, 1) + " km/h" : "–";
+  const rows = list.map((a) => {
+    const day = a.start.slice(0, 10), inPlan = !!dayOf(day);
+    return `<tr><td style="white-space:nowrap">${inPlan ? `<a href="#plan/day/${day}">${esc(dshort(day))}</a>` : esc(dshort(day))}</td>
+      <td>${sportTag(a.sport)}${activityLink(a, esc(a.name || ""))}${a.note ? `<div class="sub">“${esc(a.note)}”</div>` : ""}</td>
+      <td class="num">${esc(a.time || "")}</td><td class="num">${fmt(a.distance_km, a.sport === "swim" ? 2 : 1)}</td><td class="num">${esc(speed(a))}</td>
+      <td class="num">${fmt(a.tss)}${a.tss_source && a.tss_source !== "excluded" ? `<div class="sub">${esc(a.tss_source)}</div>` : ""}</td><td class="num">${fmt(a.if, 2)}</td>
+      <td class="num">${fmt(a.avg_hr)}</td><td class="num">${a.decoupling_pct === undefined ? "–" : fmt(a.decoupling_pct, 1) + "%"}</td><td class="num">${fmt(a.watch_load)}</td></tr>`;
+  }).join("");
+  return `<section class="card"><h2>Sessions</h2><div class="stats">${stat(w7, "Last 7 days")}${stat(list, "Last 6 weeks")}</div></section>
+    <section class="card"><h2>Last 6 weeks <span class="muted">date opens the plan day · TSS source: power, pace, swim_pace, hr${d.app.provider === "coros" ? " or coros (COROS load, rates hard sessions high)" : " or garmin"}</span></h2><div class="scroll"><table><thead><tr>
+      <th>Date</th><th>Session</th><th class="num">Time</th><th class="num">km</th><th class="num">Pace / speed</th><th class="num">TSS</th><th class="num">IF</th><th class="num">HR</th><th class="num">Decoupl.</th><th class="num">${esc(watch())} load</th>
+    </tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+// ---------------------------------------------------------------- Settings
+let SET = null, SET_MSG = { text: "", bad: false }, CONFIRM = null, pollTimer = null;
+
+function sourceBanner(d) {
+  if (!d.app.provider) return `<section class="card banner"><h2>Connect your watch</h2><div>No data source yet. Open <a href="#settings">Settings</a> to add a Garmin Personal API key or connect COROS.</div></section>`;
+  if (d.sync_error) return `<section class="card banner bad"><h2>${esc(watch())} sync failing</h2><div>${esc(d.sync_error)}</div><div class="muted"><a href="#settings">Settings ›</a></div></section>`;
+  return "";
+}
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? { cache: "no-store" }
+    : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (data.app) SET = data;
+  if (!res.ok) throw new Error(data.error || res.status);
+  return data;
+}
+
+async function act(path, body, okText) {
+  SET_MSG = { text: "Working…", bad: false };
+  renderSettings();
+  try {
+    const out = await api(path, body);
+    SET_MSG = { text: okText || "", bad: false };
+    if (out.url) window.open(out.url, "_blank", "noopener");
+    if (SET.sync_job?.running) watchSync();
+    await load();
+  } catch (e) {
+    SET_MSG = { text: e.message, bad: true };
+  }
+  renderSettings();
+}
+
+function watchSync() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try { await api("/api/settings"); } catch (e) { /* keep polling */ }
+    if (!SET.sync_job?.running) { clearInterval(pollTimer); await load(); }
+    renderSettings();
+  }, 3000);
+}
+
+function viewSettings() {
+  if (!SET) { api("/api/settings").then(() => { if (SET.sync_job?.running) watchSync(); renderSettings(); }).catch((e) => { SET_MSG = { text: e.message, bad: true }; renderSettings(); }); }
+  return '<div id="settings"><section class="card"><div class="empty">Loading settings…</div></section></div>';
+}
+
+function renderSettings() {
+  const el = document.getElementById("settings");
+  if (!el || !SET) return;
+  const active = SET.app.provider, job = SET.sync_job || {};
+  const conn = { garmin: !!SET.garmin.connected, coros: !!SET.coros.logged_in };
+  const state = (p) => conn[p] ? `<span class="state on">${p === active ? "Connected · in use" : "Connected"}</span>`
+    : `<span class="state${p === active ? " err" : ""}">${p === active ? "Selected · not connected" : "Not connected"}</span>`;
+  const useBtn = (p) => conn[p] && p !== active ? `<button class="btn" data-use="${p}">Use ${esc(SET.providers[p])} instead</button>` : "";
+  const garmin = `<div class="option ${active === "garmin" ? "active" : ""}"><h3>Garmin ${state("garmin")}</h3>
+    ${conn.garmin ? `<p>Using ${esc(SET.garmin.key)}. Paste a new key below to replace it.</p>` : "<p>Uses Garmin's official Personal API (read-only). Create a key in your Garmin account's API settings and paste it here.</p>"}
+    <div class="field"><input id="garmin-key" type="password" autocomplete="off" placeholder="Personal API key" aria-label="Garmin Personal API key">
+      <button class="btn primary" data-act="garmin-key">Save &amp; test</button></div>
+    <div class="row" style="margin-top:6px">${useBtn("garmin")}${conn.garmin ? '<button class="btn link" data-act="garmin-forget">Remove key</button>' : ""}</div></div>`;
+  const corosSteps = `<ol class="steps"><li>Click <b>Log in to COROS</b>: the COROS login opens in a new tab.</li>
+      <li>After you allow access, that tab ends on a page that does not load (an address starting with <code>http://127.0.0.1:8765/callback</code>). That is expected.</li>
+      <li>Copy the whole address from that tab and paste it here.</li></ol>`;
+  const coros = `<div class="option ${active === "coros" ? "active" : ""}"><h3>COROS ${state("coros")}</h3>
+    ${conn.coros ? `<p>Logged in; access renews by itself (current token until ${esc(SET.coros.access_token_expires)}). Log in again only if syncing stops.</p>` : "<p>Uses the official COROS connector (the same one Claude.ai offers). Can also put run and bike workouts on your COROS calendar.</p>"}
+    ${corosSteps}
+    <div class="row"><button class="btn ${conn.coros ? "" : "primary"}" data-act="coros-start">Log in to COROS</button></div>
+    <div class="field"><input id="coros-callback" type="text" autocomplete="off" placeholder="http://127.0.0.1:8765/callback?code=…" aria-label="Address after COROS login">
+      <button class="btn primary" data-act="coros-finish">Finish</button></div>
+    <div class="row" style="margin-top:6px">${useBtn("coros")}${conn.coros ? '<button class="btn link" data-act="coros-logout">Log out</button>' : ""}</div></div>`;
+  const confirm = CONFIRM ? `<section class="card banner"><h2>Switch to ${esc(SET.providers[CONFIRM])}?</h2>
+    <div>Activities and health data from ${esc(SET.providers[active])} are cleared and everything is synced fresh from ${esc(SET.providers[CONFIRM])}${CONFIRM === "coros" ? " (FIT files arrive over a few days: COROS allows about 50 per day)" : ""}. Your plan, profile, thresholds and coach note stay.</div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" data-confirm="yes">Switch</button><button class="btn" data-confirm="no">Cancel</button></div></section>` : "";
+  const syncLine = job.running ? "Syncing now…"
+    : job.finished ? (job.ok ? `Last sync from here: ${job.summary}` : `Last sync from here failed: ${job.error}`) : "";
+  const focus = SET.app.focus;
+  el.innerHTML = `${confirm}
+    <section class="card"><h2>Data source <span class="muted">where activities, sleep and HRV come from</span></h2>
+      <div class="choice">${garmin}${coros}</div>
+      <div class="row" style="margin-top:12px"><button class="btn" data-act="sync" ${!active || job.running ? "disabled" : ""}>Sync now</button>
+        <span class="muted">${active ? `Last sync ${esc(SET.last_sync ? SET.last_sync.replace("T", " ") : "never")}` : "Connect a source to start syncing."}${SET.sync_error ? ` · <span class="err">${esc(SET.sync_error)}</span>` : ""}</span></div>
+      ${syncLine ? `<div class="msg ${job.ok === false ? "err" : "muted"}">${esc(syncLine)}</div>` : ""}
+      ${SET_MSG.text ? `<div class="msg ${SET_MSG.bad ? "err" : ""}">${esc(SET_MSG.text)}</div>` : ""}</section>
+    <section class="card"><h2>Training focus <span class="muted">what the coach plans and reviews for</span></h2>
+      <div class="seg" role="group" aria-label="Training focus">${Object.entries(SET.focuses).map(([k, label]) => `<button data-focus="${k}" aria-pressed="${k === focus}">${esc(label)}</button>`).join("")}</div>
+      <p class="muted" style="margin-bottom:0">${focus === "road_cycling" ? "Bike-first coaching: power, FTP and ride structure. Other sports still count toward load." : "Swim, bike and run: per-sport thresholds (FTP, run threshold pace, CSS), bricks and race-format planning."}
+        Takes effect in the next Claude conversation.</p></section>`;
+  el.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => {
+    const a = b.dataset.act;
+    if (a === "garmin-key") act("/api/garmin/key", { key: document.getElementById("garmin-key").value }, "Garmin accepted the key. Syncing…");
+    else if (a === "garmin-forget") act("/api/garmin/forget", {}, "Key removed.");
+    else if (a === "coros-start") act("/api/coros/start", {}, "COROS login opened in a new tab. Paste the address you end up on below.");
+    else if (a === "coros-finish") act("/api/coros/finish", { callback: document.getElementById("coros-callback").value }, "COROS connected. Syncing…");
+    else if (a === "coros-logout") act("/api/coros/logout", {}, "Logged out of COROS.");
+    else if (a === "sync") act("/api/sync", {}, "");
+  }));
+  el.querySelectorAll("[data-use]").forEach((b) => b.addEventListener("click", () => { CONFIRM = b.dataset.use; renderSettings(); window.scrollTo(0, 0); }));
+  el.querySelectorAll("[data-confirm]").forEach((b) => b.addEventListener("click", () => {
+    const p = CONFIRM; CONFIRM = null;
+    if (b.dataset.confirm === "yes") act("/api/settings/source", { provider: p }, `Switched to ${SET.providers[p]}. Syncing…`); else renderSettings();
+  }));
+  el.querySelectorAll("[data-focus]").forEach((b) => b.addEventListener("click", () => act("/api/settings/focus", { focus: b.dataset.focus }, "Focus saved.")));
+}
+
+// ---------------------------------------------------------------- routing
+function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  return TABS().some((t) => t[0] === parts[0]) ? parts : ["today"];
+}
+
+function render() {
+  const d = DATA, parts = route(), tab = parts[0];
+  document.title = d.app.title;
+  document.getElementById("title").textContent = d.app.title;
+  document.getElementById("tabs").innerHTML = TABS().map(([k, label]) => `<a href="#${k}" ${k === tab ? 'aria-current="page"' : ""}>${label}</a>`).join("");
+  POST = [];
+  hideTip();
+  let html;
+  if (tab === "plan" && parts[1] === "block") html = viewBlock(d, parts[2]);
+  else if (tab === "plan" && parts[1] === "week") html = viewWeek(d, parts[2]);
+  else if (tab === "plan" && parts[1] === "day") html = viewDay(d, parts[2]);
+  else html = { today: viewToday, plan: viewPlan, health: viewHealth, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
+  document.getElementById("app").innerHTML = html;
+  POST.forEach((f) => f());
+  if (tab === "settings") renderSettings();
+  if (location.hash !== lastHash) { if (lastHash !== null) window.scrollTo(0, 0); lastHash = location.hash; }
+  const synced = d.last_sync ? d.last_sync.replace("T", " ") : "never";
+  document.getElementById("meta").textContent = `${d.app.provider ? watch() + " sync " + synced : "No data source"} · page ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+async function load() {
+  try {
+    const res = await fetch("/api/dashboard", { cache: "no-store" });
+    if (!res.ok) throw new Error((await res.json()).error || res.status);
+    DATA = await res.json();
+    // Don't wipe a half-typed key or login address on the Settings tab.
+    if (route()[0] === "settings" && document.activeElement?.tagName === "INPUT") return;
+    render();
+  } catch (e) {
+    document.getElementById("meta").innerHTML = `<span class="err">Could not load data: ${esc(e.message)}</span>`;
+  }
+}
+window.addEventListener("hashchange", () => DATA && render());
+let rt, lastW = window.innerWidth;
+window.addEventListener("resize", () => { if (window.innerWidth === lastW) return; lastW = window.innerWidth; clearTimeout(rt); rt = setTimeout(() => DATA && render(), 150); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+setInterval(load, 5 * 60 * 1000);
+load();
+</script>
+</body>
+</html>

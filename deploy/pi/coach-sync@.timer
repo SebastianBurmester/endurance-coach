@@ -1,0 +1,10 @@
+[Unit]
+Description=Coach %i: hourly sync
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target
