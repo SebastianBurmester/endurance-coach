@@ -436,7 +436,17 @@ def analyze_session(activity_id: int | None = None, sport: str | None = None) ->
         if m.get(key):
             m[key.replace("_s_", "_")] = s_to_pace(m[key])
     out["metrics"] = m
-    out["planned_session"] = plan.sessions_on(day) or "nothing planned for this day"
+    planned = plan.sessions_on(day)
+    out["planned_session"] = planned or "nothing planned for this day"
+    if stream and a["sport"] == "bike":
+        # Work reps found in the power stream (lap button or not), judged against the planned session's band.
+        target = next((p for p in planned if p.get("sport") in ("bike", "brick") and p.get("status") != "skipped"), None)
+        intervals = metrics.detect_intervals(stream, th["ftp"], target)
+        if intervals and intervals["count"]:
+            out["intervals"] = intervals
+            if intervals["count"] >= 2 and (m.get("decoupling") or {}).get("decoupling_pct") is not None:
+                m["decoupling"]["note"] = ("Whole-ride value mixes work and recovery on an interval day: "
+                                           "judge drift per rep (intervals[].pw_hr_drift_pct) instead.")
     out["form_going_in"] = load_today(day)
     s = a["summary"]
     out["watch"] = _clean({

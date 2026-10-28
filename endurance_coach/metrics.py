@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from datetime import date, timedelta
 from typing import Any
 
@@ -235,6 +236,138 @@ def lap_table(stream: Stream, sport: str, th: dict[str, Any]) -> list[dict[str, 
         if sport == "run" and row["pace_s_km"] and th.get("run_threshold_s_km"):
             row["pct_threshold_pace"] = rnd(100 * th["run_threshold_s_km"] / row["pace_s_km"])
         out.append({k: v for k, v in row.items() if v is not None})
+    return out
+
+
+# ---------------------------------------------------------------- interval detection
+
+# Power band (fraction of FTP) and shortest rep that counts, per planned session type. Without a plan (or for
+# endurance-type sessions) any sustained block above Z2 counts.
+_INTERVAL_BANDS = {
+    "tempo": (0.76, 0.92, 600),
+    "sweet_spot": (0.84, 0.97, 480),
+    "threshold": (0.91, 1.08, 300),
+    "vo2max": (1.03, 1.35, 120),
+    "anaerobic": (1.15, 2.50, 30),
+    "race": (0.76, None, 300),
+    "test": (0.85, None, 180),
+}
+_GENERIC_BAND = (0.76, None, 300)
+_MERGE_GAP_S = 20      # coasting, a traffic stop or a gear change inside a rep
+_EDGE_TRIM_MAX_S = 45  # never trim more than this off either end of a rep
+_HYSTERESIS = 0.08     # fraction of FTP a rep may sag below the band before it ends
+_PCT_RANGE_RE = re.compile(r"(\d{2,3})\s*[-–]\s*(\d{2,3})\s*%")
+_WATT_RANGE_RE = re.compile(r"(\d{2,4})\s*[-–]\s*(\d{2,4})\s*W\b")
+_REPS_RE = re.compile(r"(\d+)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(min|'|s\b|sec)", re.IGNORECASE)
+
+
+def _runs(mask: np.ndarray) -> list[tuple[int, int]]:
+    """[start, end) index pairs of consecutive True values."""
+    edges = np.diff(np.concatenate(([0], mask.astype(np.int8), [0])))
+    return list(zip(np.flatnonzero(edges == 1).tolist(), np.flatnonzero(edges == -1).tolist()))
+
+
+def interval_band(ftp: float, planned: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Watt band and minimum rep length to look for: from the planned targets (% FTP or watts), else the planned
+    session type, else generic sustained work above Z2. Rep length "NxM min" in the title or targets sets the
+    minimum to 60% of one rep, so a 4x10 still counts a rep cut short by a red light."""
+    lo, hi, min_s = _GENERIC_BAND
+    basis = "generic: sustained above Z2 (>75% FTP)"
+    if planned:
+        kind = planned.get("type")
+        if kind in _INTERVAL_BANDS:
+            lo, hi, min_s = _INTERVAL_BANDS[kind]
+            basis = f"planned {kind.replace('_', ' ')}"
+        text = " ".join(str(planned.get(k) or "") for k in ("title", "targets", "structure"))
+        pct, watts = _PCT_RANGE_RE.search(text), _WATT_RANGE_RE.search(text)
+        if pct and 50 <= int(pct.group(1)) < int(pct.group(2)) <= 250:
+            lo, hi = int(pct.group(1)) / 100 - 0.05, int(pct.group(2)) / 100 + 0.06
+            basis += f" targets {pct.group(1)}-{pct.group(2)}% FTP"
+        elif watts and 0.4 * ftp <= int(watts.group(1)) < int(watts.group(2)) <= 2.5 * ftp:
+            lo, hi = int(watts.group(1)) / ftp - 0.05, int(watts.group(2)) / ftp + 0.06
+            basis += f" targets {watts.group(1)}-{watts.group(2)} W"
+        reps = _REPS_RE.search(text)
+        if reps:
+            rep_s = float(reps.group(2).replace(",", ".")) * (1 if reps.group(3).lower().startswith("s") else 60)
+            min_s = max(20, round(0.6 * rep_s))
+            basis += f", reps {reps.group(1)}x{reps.group(2)}{'s' if rep_s < 60 else ' min'}"
+    return {"basis": basis, "lo_w": lo * ftp, "hi_w": hi * ftp if hi else None, "min_s": int(min_s)}
+
+
+def _interval_row(stream: Stream, i0: int, i1: int, ftp: float) -> dict[str, Any]:
+    power = np.nan_to_num(stream.power[i0:i1], nan=0.0)
+    hr = stream.hr[i0:i1]
+    cad = stream.cadence[i0:i1]
+    avg = float(power.mean())
+    np_w = normalized_power(power) if len(power) >= 30 else None
+    row: dict[str, Any] = {
+        "start_min": round(i0 / 60, 1),
+        "duration": f"{(i1 - i0) // 60}:{(i1 - i0) % 60:02d}",
+        "duration_s": i1 - i0,
+        "avg_power": rnd(avg),
+        "np": rnd(np_w),
+        "pct_ftp": rnd(100 * avg / ftp),
+    }
+    if np.mean(~np.isnan(hr)) > 0.8:
+        half = (i1 - i0) // 2
+        h1, h2 = float(np.nanmean(hr[:half])), float(np.nanmean(hr[half:]))
+        p1, p2 = float(power[:half].mean()), float(power[half:].mean())
+        row |= {"avg_hr": rnd(np.nanmean(hr)), "hr_first_half": rnd(h1), "hr_second_half": rnd(h2)}
+        if p1 and h1 and h2:
+            # Pw:HR drift: output per heartbeat, 2nd half vs 1st (positive = HR rose relative to power).
+            row["pw_hr_drift_pct"] = round(((p1 / h1) - (p2 / h2)) / (p1 / h1) * 100, 1)
+    pedaling = cad[~np.isnan(cad) & (cad > 0)]
+    if len(pedaling):
+        row["avg_cadence"] = rnd(pedaling.mean())
+    return {k: v for k, v in row.items() if v is not None}
+
+
+def detect_intervals(stream: Stream, ftp: float | None, planned: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """Work intervals found in the 1 Hz power stream, whether or not the athlete pressed lap.
+
+    A 30 s centered rolling mean (10 s for short reps) enters a block inside the band and leaves it only below the
+    band minus _HYSTERESIS; blocks closer than _MERGE_GAP_S are merged (coasting, stops), ramp-in/out seconds below
+    the band are trimmed off the edges (on a 5 s mean), and blocks shorter than the minimum rep are dropped."""
+    if not ftp or stream.coverage("power") < _MIN_POWER_COVERAGE or stream.seconds < 120:
+        return None
+    band = interval_band(ftp, planned)
+    lo, hi, min_s = band["lo_w"], band["hi_w"], band["min_s"]
+    power = np.nan_to_num(stream.power, nan=0.0)
+    window = 10 if min_s < 90 else 30
+    smooth = np.convolve(power, np.ones(window) / window, mode="same")
+    # Hysteresis: a rep is entered inside the band but only left once power falls clearly below it, so terrain
+    # dips on an outdoor rep don't split it. Blocks must still reach the band and average close to it.
+    floor = lo - _HYSTERESIS * ftp
+    ceiling = hi + _HYSTERESIS * ftp / 2 if hi else None
+    strict = (smooth >= lo) & ((smooth <= hi) if hi else True)
+    loose = (smooth >= floor) & ((smooth <= ceiling) if ceiling else True)
+
+    merged: list[list[int]] = []
+    for i0, i1 in _runs(loose):
+        if merged and i0 - merged[-1][1] < _MERGE_GAP_S:
+            merged[-1][1] = i1
+        else:
+            merged.append([i0, i1])
+
+    short = np.convolve(power, np.ones(5) / 5, mode="same")
+    reps = []
+    for i0, i1 in merged:
+        if i1 - i0 < min_s or not strict[i0:i1].any():
+            continue
+        a, b = i0, i1
+        while a < b - 1 and a - i0 < _EDGE_TRIM_MAX_S and short[a] < lo:
+            a += 1
+        while b - 1 > a and i1 - b < _EDGE_TRIM_MAX_S and short[b - 1] < lo:
+            b -= 1
+        if b - a >= min_s and power[a:b].mean() >= lo - _HYSTERESIS * ftp / 2:
+            reps.append(_interval_row(stream, a, b, ftp))
+    out: dict[str, Any] = {"basis": band["basis"], "band_w": [rnd(lo), rnd(hi) if hi else None],
+                           "min_rep_s": min_s, "count": len(reps), "reps": reps}
+    if len(reps) >= 2:
+        first, last = reps[0], reps[-1]
+        out["fade_pct"] = round((last["avg_power"] - first["avg_power"]) / first["avg_power"] * 100, 1)
+        if first.get("avg_hr") and last.get("avg_hr"):
+            out["hr_rise_bpm"] = rnd(last["avg_hr"] - first["avg_hr"])
     return out
 
 

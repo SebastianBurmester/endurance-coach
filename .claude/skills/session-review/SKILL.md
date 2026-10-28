@@ -11,8 +11,13 @@ description: Coach-style review of a ride, run, swim or brick (default the lates
    adjusted). Without a plan, infer the purpose from the name, IF, VI, the laps and the watch's training focus.
    Read the `athlete_note` and `perceived_effort`: they matter (illness, cycle, heat, how it felt).
 2. Assess the session against the plan or purpose:
-   - **Ride intervals**: were the work laps on the planned targets (watts / % FTP, or HR without power)? Did power
-     fade across reps (last vs first)? Did HR still rise across reps at the same power?
+   - **Ride intervals**: use `intervals` (reps found in the power stream, lap button or not; `basis` says which
+     band was searched). Judge **each rep** against the plan: count and duration vs planned reps, avg power / % FTP
+     vs the target range, Pw:HR drift per rep (<5% controlled; >5% the rep was at or above current threshold, or
+     heat / fueling), HR first → second half, cadence. Across reps: `fade_pct` (power last vs first) and
+     `hr_rise_bpm` at similar power. Show a small rep table (rep | duration | W (% FTP) | HR | drift | cadence).
+     Use laps only when they match the reps better. On interval days ignore the whole-ride decoupling.
+     Without power, judge reps by HR and laps.
    - **Endurance / long ride**: IF 0.60-0.75? Time in Z3+ (grey-zone creep)? Pw:HR decoupling on a steady ride
      <5%? Any late fade that suggests under-fueling?
    - **Race / group ride**: VI, best efforts (new 90-day bests?), where the matches were burned.
