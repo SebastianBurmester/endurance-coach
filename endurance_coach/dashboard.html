@@ -653,6 +653,12 @@ function borne(d) {
 }
 
 // ---------------------------------------------------------------- Today
+function cyclePill(c) {
+  if (!c || !c.phase) return "";
+  const next = c.days_to_next_period > 0 && !/menstrual/i.test(c.phase) ? ` · period in ${c.days_to_next_period} d` : "";
+  return `<span class="pill">${esc(c.phase)}${c.cycle_day ? ` · day ${c.cycle_day}` : ""}${next}</span>`;
+}
+
 function todayCard(d) {
   const r = d.readiness || {}, st = STATUS[r.status] || { label: "No data", color: "var(--muted)", icon: "?" };
   const today = dayOf(todayKey());
@@ -662,7 +668,8 @@ function todayCard(d) {
   return `<section class="card"><div class="hero"><div>
     <h1 class="headline">${esc(dlong(todayKey()))}</h1>
     <div class="row" style="margin-top:10px"><span class="pill"><span class="dot" style="background:${st.color}"></span>${st.icon} ${esc(st.label)}</span>
-    ${(d.events || []).slice(1, 3).map((e) => `<span class="pill">${esc(e.name)} in ${e.days_to_go} d</span>`).join("")}</div>
+    ${(d.events || []).slice(1, 3).map((e) => `<span class="pill">${esc(e.name)} in ${e.days_to_go} d</span>`).join("")}
+    ${cyclePill(r.cycle)}</div>
     ${note}</div>${borne(d)}</div>${flags ? `<ul class="flags">${flags}</ul>` : ""}
     ${sess ? `${sess}<div style="margin-top:8px"><a href="#plan/day/${todayKey()}">Open today's workout ›</a></div>` : '<div class="empty" style="margin-top:12px">Nothing planned today.</div>'}</section>`;
 }

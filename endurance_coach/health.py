@@ -93,6 +93,7 @@ def _coros_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
         "coros_load_comment": load.get("comment"),
         "coros_short_term": load.get("short_term"),
         "coros_long_term": load.get("long_term"),
+        "cycle_phase": (src.get("cycle") or {}).get("phase"),
     }
 
 
@@ -100,7 +101,7 @@ def _coros_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
 _FIELDS = ("hrv", "hrv_weekly", "hrv_status", "hrv_baseline_low", "hrv_baseline_high", "hrv_baseline", "rhr", "sleep_h",
            "sleep_score", "deep_min", "rem_min", "sleep_hr_min", "stress_avg", "steps", "weight_kg",
            "bb_wake", "bb_high", "bb_low", "bb_charged", "recovery_pct", "recovery_level",
-           "coros_load_ratio", "coros_load_comment", "coros_short_term", "coros_long_term")
+           "coros_load_ratio", "coros_load_comment", "coros_short_term", "coros_long_term", "cycle_phase")
 
 
 def day_record(day: str, src: dict[str, Any], provider: str | None = None) -> dict[str, Any]:
@@ -123,6 +124,26 @@ def latest_weight() -> float | None:
         if r["weight_kg"]:
             return r["weight_kg"]
     return None
+
+
+def cycle_status(day: date) -> dict[str, Any] | None:
+    """Menstrual cycle context from COROS (None if not tracked): today's phase, cycle day, next period."""
+    raw = store.get_meta("coros_cycle") if settings.provider() == "coros" else None
+    snap = json.loads(raw) if raw else {}
+    phase = rows(day, day)[0]["cycle_phase"]
+    if not phase and not snap.get("today_status"):
+        return None
+    out: dict[str, Any] = {"phase": phase or snap.get("today_status"), "cycle_day": snap.get("cycle_day"),
+                           "next_period_start": snap.get("next_period_start"),
+                           "usual_cycle_days": snap.get("usual_cycle_days")}
+    if snap.get("next_period_start"):
+        out["days_to_next_period"] = (date.fromisoformat(snap["next_period_start"]) - day).days
+    if snap.get("today") and snap["today"] != day.isoformat():  # snapshot from another day's sync
+        shift = (day - date.fromisoformat(snap["today"])).days
+        cycle_day = (snap.get("cycle_day") or 0) + shift
+        out["cycle_day"] = cycle_day if snap.get("cycle_day") and 0 < cycle_day <= 60 else None
+        out["phase"] = phase
+    return {k: v for k, v in out.items() if v is not None}
 
 
 def _series(records: list[dict], key: str) -> list[float]:
@@ -234,6 +255,7 @@ def readiness(day: date, load: dict[str, Any] | None = None) -> dict[str, Any]:
         "recovery": recovery,
         "watch": watch,
         "stress_yesterday": yesterday.get("stress_avg"),
+        **({"cycle": cycle} if (cycle := cycle_status(day)) else {}),
         "load": load,
         "data_present": any(v is not None for k, v in today.items() if k != "date"),
     }

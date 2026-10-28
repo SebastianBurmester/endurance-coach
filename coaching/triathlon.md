@@ -20,9 +20,14 @@ avg HR × 0.95); until then HR zones and hrTSS use 89% of max HR (`hr_est`).
   (HR drift at steady speed is confounded by terrain; trust it only on flat steady rides).
 - Swim: pace per 100 m vs CSS. Wrist HR in water is unreliable; do not judge swims by HR.
 - EF trend on comparable easy runs (m/min per beat) rising over weeks = aerobic gains.
-- Athletes sometimes note their menstrual cycle in workout notes. Treat it as context for RPE, HR and sleep, adjust
-  by how they feel, and never assume beyond what they say. Repeated low energy, missed periods, recurring bone pain
-  or rapid weight change → raise low energy availability (RED-S) gently and suggest a sports physician.
+- Menstrual cycle: if the athlete tracks it in COROS, `daily_readiness` shows `cycle` (phase, cycle day, days to
+  next period) and `health_trends` shows `cycle_phase` per day plus recent and predicted cycles. Use it as context,
+  not a rule: in the late luteal phase and the first days of the period, resting HR a few bpm higher, HRV a bit
+  lower, worse sleep and higher RPE are common, so read a mild flag in that window as cycle-related unless other
+  signals or how she feels say otherwise. Do not prescribe training by phase; adjust by how she feels and what she
+  reports. Plan key sessions and races normally, and mention fueling, hydration and iron-rich food around the period.
+- Irregular or missed periods, cycles getting much longer, repeated low energy, recurring bone pain or rapid weight
+  change → raise low energy availability (RED-S) gently and suggest a sports physician.
 
 ## Training approach
 

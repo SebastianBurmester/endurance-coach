@@ -242,6 +242,46 @@ def training_load(text: str) -> dict[str, dict[str, Any]]:
     return out
 
 
+def menstruation(text: str) -> dict[str, Any]:
+    """queryMenstruationCycles: today's status, the daily phase table and the cycle table (recorded and predicted)."""
+    head = text.split("Daily Phase Status")[0]
+
+    def line(label: str) -> str:
+        m = re.search(r"^" + label + r":\s*(.+?)\s*$", head, re.MULTILINE)
+        return m.group(1) if m else ""
+
+    def first(pattern: str, value: str) -> str | None:
+        m = re.search(pattern, value)
+        return m.group(1) if m else None
+
+    def count(pattern: str, value: str) -> int | None:
+        found = first(pattern, value)
+        return int(found) if found else None
+
+    today, current, general, nxt = line("Today"), line("Current Cycle"), line("General"), line("Next Period Start")
+    status: dict[str, Any] = {
+        "today": first(_DATE, today),
+        "today_status": first(r"\|\s*(.+)$", today),
+        "cycle_day": count(r"cycle day\s*(\d+)", current),
+        "current_period": " to ".join(re.findall(_DATE, current)) or None,
+        "next_period_start": first(_DATE, nxt),
+        "next_period_predicted": "predicted" in nxt if nxt else None,
+        "usual_period_days": count(r"period\s*(\d+)\s*day", general),
+        "usual_cycle_days": count(r"cycle\s*(\d+)\s*day", general),
+    }
+    days = {d: {"phase": p.strip()} for d, p in re.findall(r"^" + _DATE + r"\s*\|\s*([A-Za-z][^|\n]*?)\s*$",
+                                                           text, re.MULTILINE)}
+    cycles = []
+    for start, end, kind, notes in re.findall(r"^" + _DATE + r"\s+to\s+" + _DATE + r"\s*\|\s*([^|\n]+?)\s*\|\s*(.*)$",
+                                              text, re.MULTILINE):
+        length = re.search(r"Cycle length\s*(\d+)", notes)
+        cycles.append({"period_start": start, "period_end": end, "status": kind,
+                       "cycle_length_days": int(length.group(1)) if length else None,
+                       "notes": notes.strip() or None})
+    return {"status": {k: v for k, v in status.items() if v is not None}, "days": days,
+            "cycles": sorted(cycles, key=lambda c: c["period_start"])}
+
+
 def recovery(text: str) -> dict[str, Any]:
     kv = _pairs(text)
     full = kv.get("Estimated Full Recovery")

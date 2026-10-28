@@ -129,7 +129,8 @@ def build() -> dict[str, Any]:
         "events": events,
         "note": _note(),
         "readiness": {k: readiness.get(k) for k in
-                      ("status", "flags", "positives", "hrv", "resting_hr", "sleep", "recovery", "data_present")},
+                      ("status", "flags", "positives", "hrv", "resting_hr", "sleep", "recovery", "cycle",
+                       "data_present")},
         "health": [{k: r[k] for k in ("date", "hrv", "hrv_baseline_low", "hrv_baseline_high", "rhr", "sleep_h",
                                        "sleep_score", "stress_avg", "recovery_pct", "bb_high", "bb_wake",
                                        "weight_kg")} for r in hrows],

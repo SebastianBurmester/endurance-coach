@@ -17,6 +17,8 @@ from .util import to_date
 _LOGGER = logging.getLogger(__name__)
 _RECORDS_CHUNK_DAYS = 31
 _RANGE_CHUNK_DAYS = 31
+_CYCLE_BACK_DAYS = 120
+_CYCLE_AHEAD_DAYS = 45
 
 
 def _ymd(d: date) -> str:
@@ -211,4 +213,22 @@ def sync_health(days_back: int | None = None) -> dict[str, Any]:
             raise
         except Exception as exc:  # noqa: BLE001
             report[name] = {"error": str(exc)[:200]}
+
+    # Menstrual cycle (only if the athlete tracks it in the COROS app): past phases per day, plus today's status,
+    # the cycle list and upcoming phases as one snapshot. Re-read in full each sync since logging can change past days.
+    try:
+        start, end = today - timedelta(days=_CYCLE_BACK_DAYS), today + timedelta(days=_CYCLE_AHEAD_DAYS)
+        cycle = parse.menstruation(coros.call("queryMenstruationCycles", startDay=int(_ymd(start)), endDay=int(_ymd(end))))
+        with store.connect() as conn:
+            for day, rec in cycle["days"].items():
+                if day <= today.isoformat():
+                    store.put_daily(conn, "cycle", day, rec)
+        upcoming = {d: r["phase"] for d, r in cycle["days"].items() if d > today.isoformat()}
+        store.set_meta("coros_cycle", json.dumps({**cycle["status"], "cycles": cycle["cycles"][-6:],
+                                                  "upcoming_phases": dict(sorted(upcoming.items())[:21])}))
+        report["cycle"] = {"days": len(cycle["days"])}
+    except coros.CorosAuthError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        report["cycle"] = {"error": str(exc)[:200]}
     return report

@@ -68,7 +68,8 @@ def sync_data(days_back: int | None = None, max_fit_downloads: int = 20) -> dict
 def daily_readiness(day: str = "today") -> dict[str, Any]:
     """Morning readiness: last night's HRV (vs the watch's normal range and own baselines), resting HR, sleep,
     the watch's recovery gauge (COROS recovery % or Garmin Body Battery) and stress, plus training load
-    (CTL/ATL/TSB) and yesterday's sessions. Returns status green/amber/red with the flags behind it.
+    (CTL/ATL/TSB) and yesterday's sessions. Returns status green/amber/red with the flags behind it. With COROS,
+    `cycle` gives the menstrual cycle phase, cycle day and next period if the athlete tracks it (context, not a flag).
     day is YYYY-MM-DD or 'today'."""
     warning = _prefetch()
     return _wrap(coach.readiness(to_date(day)), warning)
@@ -117,7 +118,8 @@ def zone_distribution(days: int = 28, sport: str | None = None) -> dict[str, Any
 @mcp.tool()
 def health_trends(days: int = 28) -> dict[str, Any]:
     """Daily and weekly-average HRV (with the watch's normal range), resting HR, sleep, sleep score, stress, the
-    watch's recovery gauge (COROS recovery % or Body Battery) and weight. COROS adds its fitness assessment."""
+    watch's recovery gauge (COROS recovery % or Body Battery) and weight. COROS adds its fitness assessment and,
+    if tracked, the menstrual cycle (daily cycle_phase, recent and predicted cycles)."""
     warning = _prefetch()
     return _wrap(coach.health_trends(days), warning)
 
@@ -305,7 +307,8 @@ if _PROVIDER == "coros":
     def coros_raw(tool: str, arguments: dict[str, Any] | None = None, max_chars: int = 15000) -> dict[str, Any]:
         """Call a read-only COROS tool directly for data the other tools don't cover, e.g. queryActivityLapData,
         queryTrainingSchedule, queryWorkoutLibrary, queryHealthCheckTimeSeries, queryStressTimeSeries, querySleepHrv.
-        Dates are yyyyMMdd. Writes go through push_session_to_coros only."""
+        Dates are yyyyMMdd strings in startDate/endDate, except queryMenstruationCycles, which takes integer
+        startDay/endDay (both optional). Writes go through push_session_to_coros only."""
         if not tool.startswith(("query", "get")):
             return {"error": "Only read tools (query*/get*) are allowed here."}
         text = coros_api.call(tool, **(arguments or {}))

@@ -466,7 +466,8 @@ def health_trends(days: int = 28) -> dict[str, Any]:
     coros = settings.provider() == "coros"
     keys = ("hrv", "rhr", "sleep_h", "sleep_score", "stress_avg",
             *(("recovery_pct",) if coros else ("bb_wake", "bb_high", "weight_kg")))
-    daily = [_clean({k: r[k] for k in ("date", *keys, "hrv_status", "hrv_baseline_low", "hrv_baseline_high")}) for r in recs]
+    daily = [_clean({k: r[k] for k in ("date", *keys, "hrv_status", "hrv_baseline_low", "hrv_baseline_high",
+                                       "cycle_phase")}) for r in recs]
     weekly = []
     for i in range(0, len(recs), 7):
         chunk = recs[i:i + 7]
@@ -479,6 +480,9 @@ def health_trends(days: int = 28) -> dict[str, Any]:
     if coros:
         out |= {"coros_fitness": meta_json("coros_fitness"),
                 "note": "recovery_pct is COROS's snapshot at the first sync of each day."}
+        cycle = meta_json("coros_cycle")
+        if cycle.get("cycles") or cycle.get("today_status"):
+            out["menstrual_cycle"] = cycle
     return out
 
 
