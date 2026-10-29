@@ -18,6 +18,8 @@ description: Weekly training review and plan for next week. Covers plan complian
    - Recovery: HRV 7-day trend vs normal range, RHR trend, sleep average, the watch's recovery gauge. Any warning
      pattern? Session notes (illness, pain, cycle) as context.
    - Where we are in the block / season relative to the next A/B event (weeks to go → phase).
+   - Weight (`nutrition_overview`, if a target is set or weigh-ins exist): trend and 4-week rate vs target and the
+     safe rate, long sessions with late drift (fueling), any findings.
 3. Plan next week:
    - Start from what is already planned (`get_plan`), carrying forward or dropping missed key sessions. Lower the
      load if recovery markers are down or compliance was poor because of fatigue. A recovery week comes every
@@ -30,6 +32,7 @@ description: Weekly training review and plan for next week. Covers plan complian
      `structure` for each session. Check the `projection` in the result.
    - COROS connected: offer to push next week's run and bike sessions to the watch (`push_session_to_coros`).
    - Give the 1-2 priorities for the week and what would trigger an adjustment (e.g. HRV below range 2 days in a row).
+   - With a weight target: name the fuel-up days (key and long sessions) and the deficit-OK days of the new week.
 4. Post to the dashboard with `set_coach_note` (kind `week-review`): last week's verdict and compliance, and the
    1-2 priorities for the coming week, in 2-4 short lines.
 5. Keep it scannable: verdict → compliance line → 4-6 review bullets → plan table → priorities.

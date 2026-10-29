@@ -120,10 +120,16 @@ nav.tabs .wrap::-webkit-scrollbar { display: none; }
 nav.tabs a { position: relative; padding: 10px 12px 13px; color: var(--asphalt-muted); font: 600 18px/1.2 var(--display); white-space: nowrap; }
 nav.tabs a:hover { color: var(--asphalt-ink); text-decoration: none; }
 /* Active tab: a road-marking dash. */
-nav.tabs a[aria-current="page"] { color: var(--asphalt-ink); }
-nav.tabs a[aria-current="page"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 4px; background: var(--col-yellow); transform: skewX(-24deg); }
+nav.tabs .main a.on { color: var(--asphalt-ink); }
+nav.tabs .main a.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 4px; background: var(--col-yellow); transform: skewX(-24deg); }
 :focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; border-radius: 4px; }
 nav.tabs a:focus-visible { outline-color: var(--col-yellow); }
+nav.tabs .main a.gear { margin-left: auto; font-size: 20px; }
+/* Pages inside the active section: a row of pills under the sections. */
+nav.tabs .sub { gap: 6px; padding-bottom: 10px; }
+nav.tabs .sub:empty { display: none; }
+nav.tabs .sub a { padding: 5px 13px; border-radius: 999px; border: 1px solid var(--asphalt-2); font: 600 14px/1.2 var(--body); }
+nav.tabs .sub a[aria-current="page"] { background: var(--col-yellow); border-color: var(--col-yellow); color: var(--marker-ink); }
 .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
 .grid + .grid, .card + .grid, .grid + .card, .card + .card { margin-top: 16px; }
 .grid > .card { margin-top: 0; }
@@ -143,6 +149,18 @@ ul.flags li { margin: 2px 0; }
 .sub { color: var(--ink-2); font-size: 13px; }
 .targets { font-size: 13px; }
 details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-top: 8px; }
+details.help { font-size: 13px; color: var(--muted); }
+details.help > summary { color: var(--muted); list-style: none; }
+details.help > summary::-webkit-details-marker { display: none; }
+details.help > summary::before { content: "ⓘ "; }
+details.help > div { margin-top: 4px; }
+details.more-items > summary { color: var(--series-1); font-weight: 600; padding: 4px 0; }
+details.more-sections { margin: 0 0 16px; }
+details.more-sections > summary { list-style: none; margin: 0; padding: 12px 16px; border: 1px dashed var(--axis); border-radius: 12px; font: 600 15px/1.3 var(--display); color: var(--ink-2); text-align: center; }
+details.more-sections > summary::-webkit-details-marker { display: none; }
+details.more-sections > summary::after { content: " ▾"; }
+details.more-sections[open] > summary { margin-bottom: 16px; }
+details.more-sections[open] > summary::after { content: " ▴"; }
 .tiles { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 640px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tile { background: var(--surface-2); border-radius: 6px; padding: 12px; min-width: 0; }
@@ -164,6 +182,7 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-
 .legend .line { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
 .legend .dash { width: 16px; height: 0; border-top: 2px dashed var(--muted); display: inline-block; }
 .legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.legend .line.dash { background: repeating-linear-gradient(90deg, var(--ink-2) 0 4px, transparent 4px 8px); }
 .legend .sw.outline { border: 1.5px solid var(--muted); background: var(--surface-2); }
 .tooltip { position: absolute; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); font-size: 12px; padding: 6px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); opacity: 0; transition: opacity .08s; z-index: 20; }
 .tooltip .k { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
@@ -299,6 +318,21 @@ a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
 .steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-2); }
 .steps li { margin: 3px 0; }
 .msg { margin-top: 8px; font-size: 14px; }
+.fuel-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--grid); font-size: 14px; }
+.fuel-line a { margin-left: auto; }
+.fuel-table td { vertical-align: top; }
+.fuel-sess + .fuel-sess { margin-top: 6px; }
+.fuel-sess > div { font-size: 13px; }
+.ladder { position: relative; display: block; width: 72px; height: 6px; margin: 4px 0 0 auto; border-radius: 3px; background: var(--grid); }
+.ladder span { position: absolute; top: 0; bottom: 0; border-radius: 3px; min-width: 4px; }
+.race-fuel { padding: 10px 0; border-bottom: 1px solid var(--grid); }
+.race-fuel:last-of-type { border-bottom: 0; }
+.race-fuel .flags { margin: 6px 0 0; }
+.calc { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.calc label { display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.calc input { font: 15px/1.3 var(--body); padding: 7px 9px; border: 1px solid var(--axis); border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 0; }
+.calc-out { margin-top: 10px; }
+.calc-box > summary { font-weight: 600; margin: 12px 0 8px; }
 
 /* sleep */
 .finding { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; padding: 9px 0; border-bottom: 1px solid var(--grid); }
@@ -342,7 +376,7 @@ td.worse { color: var(--critical); }
   <h1 id="title">Coach</h1>
   <div class="meta" id="meta">Loading…</div>
 </div></header>
-<nav class="tabs" aria-label="Sections"><div class="wrap" id="tabs"></div></nav>
+<nav class="tabs" aria-label="Sections"><div class="wrap main" id="tabs"></div><div class="wrap sub" id="subtabs"></div></nav>
 <main>
   <div id="app"></div>
 </main>
@@ -350,8 +384,13 @@ td.worse { color: var(--critical); }
 <script>
 "use strict";
 const TABS = () => [["today", "Today"], ["plan", "Plan"], ["races", "Races"], ["sessions", cycling() ? "Rides" : "Sessions"],
-  ["sports", cycling() ? "Bike" : "Sports"], ["progress", "Progress"], ["load", "Load"], ["recovery", "Recovery"], ["health", "Health"],
-  ["sleep", "Sleep"], ["settings", "Settings"]];
+  ["sports", cycling() ? "Bike" : "Sports"], ["progress", "Progress"], ["load", "Load"], ["health", "Health"], ["recovery", "Recovery"],
+  ["sleep", "Sleep"], ["nutrition", "Nutrition"], ["settings", "Settings"]];
+// Sections in the top bar; the pages of the active one show as pills below it.
+const SECTIONS = [["today", "Today", ["today"]], ["planning", "Plan", ["plan", "races"]],
+  ["training", "Training", ["sessions", "sports", "progress", "load"]], ["body", "Body", ["health", "recovery", "sleep", "nutrition"]],
+  ["settings", "Settings", ["settings"]]];
+const lastPage = {};  // section -> the page last opened in it, so the section link returns there
 const cycling = () => DATA?.app?.focus === "road_cycling";
 const watch = () => DATA?.app?.provider_label || "Watch";
 const SPORT = { swim: "Swim", bike: "Bike", run: "Run", brick: "Brick", strength: "Strength", mobility: "Mobility", multisport: "Multisport", rest: "Rest", other: "Other" };
@@ -396,7 +435,7 @@ const wday = (s) => WD[(pd(s).getDay() + 6) % 7];
 const hm = (min) => { if (!min) return ""; const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h${m ? pad(m) : ""}` : `${m}min`; };
 const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
 // "Engadin Radmarathon - Prolog (Bergzeitfahren …)" -> "Engadin Radmarathon - Prolog", at most 26 characters.
-const shortName = (n) => { const s = String(n || "").split(" (")[0].trim(); return s.length > 26 ? s.slice(0, 25).trimEnd() + "…" : s; };
+const shortName = (n, max = 26) => { const s = String(n || "").split(" (")[0].trim(); return s.length > max ? s.slice(0, max - 1).trimEnd() + "…" : s; };
 const typeName = (t) => (t || "other").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 const sessTss = (s) => s.tss ?? s.tss_est ?? null;
 const todayKey = () => DATA.generated.slice(0, 10);
@@ -739,10 +778,11 @@ function todayCard(d) {
   return `<section class="card"><div class="hero"><div>
     <h1 class="headline">${esc(dlong(todayKey()))}</h1>
     <div class="row" style="margin-top:10px"><span class="pill"><span class="dot" style="background:${st.color}"></span>${st.icon} ${esc(st.label)}</span>
-    ${(d.events || []).slice(1, 3).map((e) => `<span class="pill">${esc(e.name)} in ${e.days_to_go} d</span>`).join("")}
+    ${(d.events || []).slice(1, 3).map((e) => `<span class="pill" title="${esc(e.name)}">${esc(shortName(e.name, 36))} · ${e.days_to_go} d</span>`).join("")}
     ${cyclePill(r.cycle)}</div>
     ${note}</div>${borne(d)}</div>${flags ? `<ul class="flags">${flags}</ul>` : ""}
-    ${sess ? `${sess}<div style="margin-top:8px"><a href="#plan/day/${todayKey()}">Open today's workout ›</a></div>` : '<div class="empty" style="margin-top:12px">Nothing planned today.</div>'}</section>`;
+    ${sess ? `${sess}<div style="margin-top:8px"><a href="#plan/day/${todayKey()}">Open today's workout ›</a></div>` : '<div class="empty" style="margin-top:12px">Nothing planned today.</div>'}
+    ${fuelTodayLine(d.fuel_today)}</section>`;
 }
 
 function comingUpCard(d) {
@@ -835,7 +875,7 @@ function viewPlan(d) {
   const totalH = future.reduce((a, w) => a + w.planned_h, 0), totalT = future.reduce((a, w) => a + w.planned_tss, 0);
   const done = weeks.filter((w) => w.completion_pct !== null && w.completion_pct !== undefined);
   const comp = done.length ? Math.round(mean(done.map((w) => w.completion_pct))) : null;
-  const ev = (d.events || []).slice(1).map((e) => `<span class="pill">${esc(e.name)}, ${esc(dshort(e.date))}, in ${e.days_to_go} d</span>`).join("");
+  const ev = (d.events || []).slice(1).map((e) => `<a class="pill" href="#races" title="${esc(e.name)}">${esc(shortName(e.name, 36))} · ${esc(dshort(e.date))} · ${e.days_to_go} d</a>`).join("");
   mount("plan-bars", (c) => weekBars(c, planWeekItems(weeks), { height: 150, aria: "Planned and done TSS per week" }));
   const blocks = [...p.blocks].sort((a, c) => a.start_date.localeCompare(c.start_date)).map((b) => {
     const bws = blockWeeks(b), cur = blockOfDay(todayKey())?.id === b.id;
@@ -1125,6 +1165,8 @@ function diffText(r) {
 }
 const metricVal = (r, v) => !has(v) ? "–" : r.metric === "bed_min" ? clockOf(v) : r.metric === "asleep_min" ? hm(v) : `${fmt(v)}${r.unit === "%" ? "%" : ""}`;
 
+// Comparisons that found something come first.
+const influenceRank = (inf) => inf.n < 4 || inf.n_rest < 4 ? 2 : inf.metrics.some((r) => r.verdict === "clear" || r.verdict === "possible") ? 0 : 1;
 function influenceBlock(inf) {
   const rows = inf.metrics.filter((r) => r.verdict !== "no_data");
   const sig = rows.filter((r) => (r.verdict === "clear" || r.verdict === "possible") && r.metric !== "bed_min");
@@ -1136,11 +1178,11 @@ function influenceBlock(inf) {
     : worse > better ? ["Worse sleep", "var(--critical)", "▼"] : better > worse ? ["Better sleep", "var(--good)", "▲"] : ["Mixed", "var(--warning)", "◐"];
   const ctx = [inf.tss_median && (inf.tss_median[0] || inf.tss_median[1]) ? `median day TSS ${fmt(inf.tss_median[0])} vs ${fmt(inf.tss_median[1])}` : "",
     inf.bed_min_median ? `median bedtime ${clockOf(inf.bed_min_median[0])} vs ${clockOf(inf.bed_min_median[1])}` : ""].filter(Boolean).join(" · ");
-  const table = rows.length && inf.n ? `<details><summary>Numbers: ${esc(inf.group)} (${inf.n}) vs ${esc(inf.rest)} (${inf.n_rest})</summary><div class="scroll"><table><thead><tr><th>Metric</th><th class="num">${esc(inf.group)}</th><th class="num">${esc(inf.rest)}</th><th class="num">Difference</th><th>Verdict</th></tr></thead><tbody>
+  const table = rows.length && inf.n ? `<details><summary>Numbers: ${esc(inf.group)} (${inf.n}) vs ${esc(inf.rest)} (${inf.n_rest})</summary>${ctx ? `<p class="muted">${esc(ctx)}</p>` : ""}${inf.note ? `<p class="muted">${esc(inf.note)}</p>` : ""}<div class="scroll"><table><thead><tr><th>Metric</th><th class="num">${esc(inf.group)}</th><th class="num">${esc(inf.rest)}</th><th class="num">Difference</th><th>Verdict</th></tr></thead><tbody>
     ${rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="num">${esc(metricVal(r, r.mean))}</td><td class="num">${esc(metricVal(r, r.mean_rest))}</td>
       <td class="num ${r.effect || ""}">${esc(diffText(r))}</td><td>${esc(VERDICT[r.verdict] || "")}${r.effect ? ` · ${r.effect}` : ""}</td></tr>`).join("")}</tbody></table></div></details>` : "";
   return `<div class="influence"><h3>${esc(inf.question)}<span class="badge"><span class="dot" style="background:${color}"></span>${icon} ${esc(label)}</span></h3>
-    <p>${esc(inf.summary)}</p>${ctx ? `<p class="muted">${esc(ctx)}</p>` : ""}${inf.note ? `<p class="muted">${esc(inf.note)}</p>` : ""}${table}</div>`;
+    <p>${esc(inf.summary)}</p>${table}</div>`;
 }
 
 const sleepStat = (v, label) => `<div><div class="value">${v}</div><div class="label">${esc(label)}</div></div>`;
@@ -1172,8 +1214,8 @@ function sleepSummaryCard(s) {
       ${sleepStat(has(s.debt_14d_h) ? `${fmt(s.debt_14d_h, 1)}<small>h</small>` : "–", "Sleep debt · last 14 nights")}
       ${sleepStat(has(rh.mid_sd_min) ? `±${fmt(rh.mid_sd_min)}<small>min</small>` : "–", `Rhythm${rh.rating ? ": " + rh.rating : ""} (midpoint spread)`)}
       ${sleepStat(esc(s.target_bedtime || "–"), `Lights out for ${fmt(s.need_h, 1)} h by your ${s.target_wake || "usual"} wake-up`)}</div>
-    <div class="muted">Score bands, ${total} nights: ${Object.entries(b).map(([k, v]) => `${esc(k)} ${v} (${total ? Math.round((v / total) * 100) : 0}%)`).join(" · ")}</div>
-    <div class="muted">Deep ${fmt(p.deep_pct)}% · REM ${fmt(p.rem_pct)}% of sleep · ~${fmt(p.awake_min)} min awake per night · avg ${esc(p.bed || "–")} – ${esc(p.wake || "–")}</div></section>`;
+    ${help(`Score bands, ${total} nights: ${Object.entries(b).map(([k, v]) => `${esc(k)} ${v} (${total ? Math.round((v / total) * 100) : 0}%)`).join(" · ")}<br>
+      Deep ${fmt(p.deep_pct)}% · REM ${fmt(p.rem_pct)}% of sleep · ~${fmt(p.awake_min)} min awake per night · avg ${esc(p.bed || "–")} – ${esc(p.wake || "–")}`)}</section>`;
 }
 
 function viewSleep(d) {
@@ -1201,8 +1243,8 @@ function viewSleep(d) {
     <td>${n.train_min >= 15 ? `${fmt(n.tss)} TSS${n.last_session ? ` · ${esc(n.last_session)}` : ""}` : "rest"}${n.evening_mobility ? ` · ${esc(n.evening_mobility)}` : ""}</td></tr>`).join("");
   return `${sourceBanner(d)}<div class="grid two">${lastNightCard(s)}${sleepSummaryCard(s)}</div>
     <section class="card"><h2>What to improve <span class="muted">from ${s.window.nights} nights, ${esc(dshort(s.window.start))} – ${esc(dshort(s.window.end))}</span></h2>
-      ${s.findings.length ? s.findings.map(findingRow).join("") : '<div class="empty">Nothing stands out yet.</div>'}
-      <div class="muted" style="margin-top:8px">Sleep need: ${esc(s.need_source)}. Tell the coach how many hours you feel best on to change it.</div></section>
+      ${s.findings.length ? topList(s.findings.map(findingRow)) : '<div class="empty">Nothing stands out yet.</div>'}
+      ${help(`Sleep need: ${esc(s.need_source)}. Tell the coach how many hours you feel best on to change it.`)}</section>
     <section class="card"><h2>Sleep rhythm <span class="muted">last 60 nights · time runs down</span></h2>
       <div class="stats">${rhythmStats.map(([v, l, sub]) => `<div><div class="value">${v}</div><div class="label">${esc(l)}<br>${esc(sub)}</div></div>`).join("")}</div>
       <div class="legend"><span class="key"><span class="sw" style="background:var(--series-1)"></span>Asleep (bed to wake)</span><span class="key"><span class="dash"></span>Usual bed / wake</span>
@@ -1212,13 +1254,13 @@ function viewSleep(d) {
       <section class="card"><h2>Time asleep (h)<span class="muted">7-day ${fmt(s.periods["7d"].asleep_h, 1)} · 30-day ${fmt(s.periods["30d"].asleep_h, 1)}</span></h2><div class="chart" id="sl-hours"></div><div class="muted">shaded: your need of ${fmt(s.need_h, 1)} h up to an hour more</div></section></div>
     <section class="card"><h2>Sleep stages <span class="muted">last 30 nights</span></h2>${STAGE_LEGEND}<div class="chart" id="sl-stages"></div></section>
     <section class="card"><h2>What affects your sleep <span class="muted">the night after each kind of day vs the other nights</span></h2>
-      ${s.influences.map(influenceBlock).join("")}
-      <div class="muted" style="margin-top:8px">Clear = a difference this size is unlikely to be chance (|t| ≥ 2.5); possible = a hint worth watching. These are associations: hard days, late sessions and late nights often come together.</div></section>
-    <div class="grid two"><section class="card"><h2>Training load and sleep <span class="muted">by the day's TSS</span></h2><div class="scroll"><table><thead><tr><th>Day before</th><th class="num">Nights</th><th class="num">Score</th><th class="num">Asleep</th><th class="num">Deep min</th><th class="num">Awake min</th><th class="num">Sleep HR</th><th class="num">HRV</th></tr></thead><tbody>${bins}</tbody></table></div></section>
+      ${topList([...s.influences].sort((a, b) => influenceRank(a) - influenceRank(b)).map(influenceBlock), 3)}
+      ${help("Clear = a difference this size is unlikely to be chance (|t| ≥ 2.5); possible = a hint worth watching. These are associations: hard days, late sessions and late nights often come together.")}</section>
+    ${moreSections("More: by training load, weekday, relationships, every night", `<div class="grid two"><section class="card"><h2>Training load and sleep <span class="muted">by the day's TSS</span></h2><div class="scroll"><table><thead><tr><th>Day before</th><th class="num">Nights</th><th class="num">Score</th><th class="num">Asleep</th><th class="num">Deep min</th><th class="num">Awake min</th><th class="num">Sleep HR</th><th class="num">HRV</th></tr></thead><tbody>${bins}</tbody></table></div></section>
       <section class="card"><h2>Weekday pattern <span class="muted">by the night's evening</span></h2><div class="scroll"><table><thead><tr><th>Night</th><th class="num">n</th><th class="num">Asleep</th><th class="num">Score</th><th class="num">Bed</th><th class="num">Wake</th><th class="num">Day TSS</th></tr></thead><tbody>${wk}</tbody></table></div></section></div>
     <section class="card"><h2>Relationships <span class="muted">Spearman ρ: +1 rise together, −1 opposite, 0 none</span></h2><div class="scroll"><table><thead><tr><th>Relationship</th><th class="num">Nights</th><th class="num">ρ</th><th>Strength</th></tr></thead><tbody>${corr}</tbody></table></div></section>
     ${cyc}
-    <section class="card"><details><summary>All nights (last 60)</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Night of</th><th class="num">Bed</th><th class="num">Wake</th><th class="num">Asleep</th><th class="num">Score</th><th class="num">Eff.</th><th class="num">Deep</th><th class="num">REM</th><th class="num">Awake</th><th class="num">HR</th><th class="num">HRV</th><th>Day before</th></tr></thead><tbody>${all}</tbody></table></div></details></section>`;
+    <section class="card"><details><summary>All nights (last 60)</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Night of</th><th class="num">Bed</th><th class="num">Wake</th><th class="num">Asleep</th><th class="num">Score</th><th class="num">Eff.</th><th class="num">Deep</th><th class="num">REM</th><th class="num">Awake</th><th class="num">HR</th><th class="num">HRV</th><th>Day before</th></tr></thead><tbody>${all}</tbody></table></div></details></section>`)}`;
 }
 
 // ---------------------------------------------------------------- Load
@@ -1341,6 +1383,11 @@ const levelIcon = { good: ["✓", "var(--good)", "#fff"], warn: ["!", "var(--war
 const noteRow = (level, text, title) => { const [ic, bg, ink] = levelIcon[level] || levelIcon.info;
   return `<div class="finding"><span class="ic" style="background:${bg};color:${ink}" role="img" aria-label="${level}">${ic}</span>${title ? `<b>${esc(title)}</b><p>${esc(text)}</p>` : `<span>${esc(text)}</span>`}</div>`; };
 const statBox = (v, label) => `<div><div class="value">${v}</div><div class="label">${esc(label)}</div></div>`;
+// Explanations and long lists stay one tap away instead of filling the screen.
+const help = (html) => `<details class="help"><summary>How to read this</summary><div>${html}</div></details>`;
+const topList = (rows, n = 3) => rows.length <= n ? rows.join("")
+  : rows.slice(0, n).join("") + `<details class="more-items"><summary>${rows.length - n} more</summary>${rows.slice(n).join("")}</details>`;
+const moreSections = (label, html) => `<details class="more-sections"><summary>${esc(label)}</summary>${html}</details>`;
 
 /* Generic x/y chart: time ("time", ISO dates), log or linear x; line, dot and bar series; reference lines; one
    tooltip for the nearest point of every series. o: { series:[{points:[[x,y,extra]], color, label, kind, dash}],
@@ -1533,14 +1580,14 @@ function viewProgress() {
     const mb = p.bike.monthly_bests || {}, mbKeys = Object.keys(mb), mbColors = ["var(--cat-1)", "var(--cat-2)", "var(--cat-3)"];
     if (mbKeys.length) mount("pg-bests", (c) => xyChart(c, { x: "time", height: 170, aria: "Best power per month", yfmt: (v) => fmt(v), onClick: (pt) => { location.hash = sessionHref(pt.id); },
       series: mbKeys.map((k, i) => ({ points: mb[k].map((pt) => [pt.date, pt.value, { ...pt, name: "" }]), color: mbColors[i], label: k, marks: true, tfmt: (v) => `${fmt(v)} W` })) }));
-    const hl = p.highlights.length ? p.highlights.map((h) => noteRow(h.level, h.text)).join("") : '<div class="empty">Not enough data for trends yet.</div>';
+    const hl = p.highlights.length ? topList(p.highlights.map((h) => noteRow(h.level, h.text)), 4) : '<div class="empty">Not enough data for trends yet.</div>';
     const r = p.run;
     const preds = r.predictions ? `<section class="card"><h2>Race predictions <span class="muted">${esc(watch())}</span></h2><div class="stats">${Object.entries(r.predictions).map(([k, v]) => statBox(esc(v), k)).join("")}</div>${r.vo2max?.points?.length ? `<div class="muted">VO2max ${fmt(r.vo2max.points[r.vo2max.points.length - 1].value)}</div>` : ""}</section>` : "";
     const ctlDelta = has(f.ctl) && has(f.ctl_6w_ago) ? f.ctl - f.ctl_6w_ago : null;
     return `<section class="card"><h1 class="headline">Progress</h1><div class="subhead">The last 12 months: thresholds, fitness and whether the same efforts are getting easier.</div>
         <div style="margin-top:10px">${hl}</div></section>
       <div class="grid two"><section class="card"><h2>Thresholds <span class="muted">what TSS, zones and targets use</span></h2><div class="scroll"><table><tbody>${thRows}</tbody></table></div>
-          <div class="muted" style="margin-top:6px">Thresholds change only after you confirm a number with the coach (a test or a race).</div></section>
+          ${help("Thresholds change only after you confirm a number with the coach (a test or a race).")}</section>
         <section class="card"><h2>Fitness over the year</h2><div class="stats">${statBox(fmt(f.ctl), "CTL now")}${statBox(has(ctlDelta) ? `${ctlDelta > 0 ? "+" : ""}${fmt(ctlDelta)}` : "–", "vs 6 weeks ago")}${statBox(fmt(f.peak.ctl), `Peak · ${dshort(f.peak.date)}`)}</div>
           <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Fitness (CTL)</span><span class="key"><span class="line" style="background:var(--series-2)"></span>Fatigue (ATL)</span></div><div class="chart" id="pg-ctl"></div></section></div>
       <section class="card"><h2>Hours per month</h2>${sportLegend(sports)}<div class="chart" id="pg-monthly"></div></section>
@@ -1618,10 +1665,10 @@ function viewRecovery() {
         <div class="chart-label">Form (TSB): below −30 is deep fatigue</div><div class="chart" id="rc-tsb"></div></section>
       <div class="grid two"><section class="card"><h2>After big days <span class="muted">${r.big_day_tss ? `≥ ${fmt(r.big_day_tss)} TSS · ${r.big_days.length} days` : "not enough data"}</span></h2>
           ${bounce ? `<div class="scroll"><table><thead><tr><th>Morning</th><th class="num">HRV vs baseline</th><th class="num">RHR bpm</th><th class="num">Sleep score</th><th class="num">n</th></tr></thead><tbody>${bounce}</tbody></table></div>
-          <div class="muted" style="margin-top:6px">Baseline = your 30 days before each big day. A dip on morning 1 is normal; still down by morning 3 means space hard days further apart.</div>` : '<div class="empty">Not enough big days yet.</div>'}</section>
+          ${help("Baseline = your 30 days before each big day. A dip on morning 1 is normal; still down by morning 3 means space hard days further apart.")}` : '<div class="empty">Not enough big days yet.</div>'}</section>
         <section class="card"><h2>Strain episodes <span class="muted">2+ days of red or HRV / resting-HR flags</span></h2>
           ${eps ? `<div class="scroll"><table><thead><tr><th>When</th><th class="num">Days</th><th class="num">Red</th><th>Signals</th><th class="num">TSS 7 d before</th></tr></thead><tbody>${eps}</tbody></table></div>
-          <div class="muted" style="margin-top:6px">High load before = training strain. Low load before = look at illness, travel, heat, alcohol or life stress.</div>` : '<div class="empty">None in this window.</div>'}</section></div>
+          ${help("High load before = training strain. Low load before = look at illness, travel, heat, alcohol or life stress.")}` : '<div class="empty">None in this window.</div>'}</section></div>
       <section class="card"><details><summary>Week by week</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Week of</th><th class="num">TSS</th><th class="num">HRV</th><th class="num">RHR</th><th class="num">Sleep h</th><th class="num">CTL</th><th class="num">Mornings</th></tr></thead><tbody>${weekly}</tbody></table></div></details></section>`;
   });
 }
@@ -1761,18 +1808,20 @@ function viewRaces(d) {
       const taperText = (e.priority === "A" || tp.block) && has(tp.reduction_pct)
         ? ` Last 10 days ${fmt(tp.last_10d_tss)} TSS vs ${fmt(tp.prior_10d_tss)} the 10 before (${tp.reduction_pct > 0 ? "−" : "+"}${fmt(Math.abs(tp.reduction_pct))}%; an A-race taper cuts 40–60%).` : "";
       const keys = (p.key_sessions || []).map((k) => `<li><a href="#plan/day/${k.date}">${esc(wday(k.date))} ${esc(dshort(k.date))}</a> ${sportTag(k.sport)}${esc(k.title)}</li>`).join("");
-      const coverage = p.covered_until ? (p.covered_until >= e.date ? "The plan runs through race day." : `The plan ends ${dshort(p.covered_until)}: ask the coach to plan up to the race.`) : "No sessions planned toward this race yet.";
+      const covered = p.covered_until && p.covered_until >= e.date;
+      const coverage = covered ? "The plan runs through race day." : p.covered_until ? `Plan ends ${dshort(p.covered_until)}: race-day form shows once it reaches the race.` : "No sessions planned toward this race yet.";
+      const detail = e.name.includes(" (") ? e.name.slice(e.name.indexOf(" (") + 2).replace(/\)$/, "") : "";
       return `<section class="card event-card" id="race-${e.date}"><div class="kicker">${e.priority ? `<span class="pill">${esc(e.priority)} race</span>` : ""}${e.format ? `<span>${esc(e.format)}</span>` : ""}<span>${esc(dlong(e.date))}</span></div>
-        <h1 class="headline">${esc(e.name)}</h1>
+        <h1 class="headline">${esc(e.name.split(" (")[0])}</h1>${detail ? `<div class="sub">${esc(detail)}</div>` : ""}
         <div class="stats" style="margin-top:12px">${statBox(`${e.days_to_go}<small>${e.days_to_go === 1 ? "day" : "days"}</small>`, `to go · ${Math.floor(e.days_to_go / 7)} weeks`)}
-          ${statBox(pr(e.projected), `Projected form (TSB) on the day${target ? " · " + target : ""}`)}${statBox(fmt(e.projected?.ctl), `Projected fitness (CTL) · now ${fmt(r.ctl_today)}`)}
+          ${covered ? statBox(pr(e.projected), `Race-day form (TSB)${target ? " · " + target : ""}`) + statBox(fmt(e.projected?.ctl), `Race-day fitness (CTL) · now ${fmt(r.ctl_today)}`) : ""}
           ${statBox(p.sessions ? `${p.sessions}<small>· ${fmt(p.hours, 0)} h</small>` : "0", "Sessions planned until then")}</div>
-        ${e.form_verdict ? `<div class="row"><span class="badge"><span class="dot" style="background:${verdictColor}"></span>${esc(e.form_verdict)}</span></div>` : ""}
+        ${covered && e.form_verdict ? `<div class="row"><span class="badge"><span class="dot" style="background:${verdictColor}"></span>${esc(e.form_verdict)}</span></div>` : ""}
         <div class="sub" style="margin-top:6px">${esc(coverage)}${tp.block ? ` Taper: ${esc(tp.block)}.` : ""}${esc(taperText)}</div>
         ${(e.blocks || []).length ? `<div class="muted" style="margin-top:4px">Blocks: ${e.blocks.map((b) => `<a href="#plan/block/${b.id}">${esc(b.name)}</a>${b.phase ? ` (${esc(b.phase)})` : ""}`).join(" → ")}</div>` : ""}
         ${keys ? `<div class="section-label">Key sessions in the 6 weeks before it</div><ul class="flags">${keys}</ul>` : ""}
         <div class="section-label">Race plan${e.race_plan_updated ? ` · ${esc(dshort(e.race_plan_updated))}` : ""}</div>
-        ${e.race_plan ? richText(e.race_plan) : '<div class="empty">No race plan yet. Ask the coach for pacing, fueling and logistics; it saves them here.</div>'}</section>`;
+        ${e.race_plan ? richText(e.race_plan) : '<div class="muted">None yet: ask the coach for pacing, fueling and logistics.</div>'}</section>`;
     };
     const pastCard = (e) => `<section class="card event-card past"><div class="kicker">${e.priority ? `<span class="pill">${esc(e.priority)}</span>` : ""}${e.format ? `<span>${esc(e.format)}</span>` : ""}<span>${esc(dlong(e.date))}</span></div>
       <h2>${esc(e.name)}<span class="muted">${e.form_on_the_day ? `form ${pr(e.form_on_the_day)} · CTL ${fmt(e.form_on_the_day.ctl)}` : ""}</span></h2>
@@ -1784,6 +1833,189 @@ function viewRaces(d) {
       ${up.map(card).join("")}${preds}
       ${past.length ? `<div class="section-label">Past events</div>${past.map(pastCard).join("")}` : ""}`;
   });
+}
+
+// ---------------------------------------------------------------- Nutrition
+const FUEL_DAY = {
+  race: ["Race day", "var(--int-hard)"], carb_load: ["Carb load", "var(--int-hard)"], fuel_up: ["Fuel up", "var(--int-moderate)"],
+  normal: ["Maintenance", "var(--int-easy)"], deficit_ok: ["Deficit OK", "var(--muted)"],
+};
+const range = (r, unit = "") => r ? (r[0] === r[1] ? `${fmt(r[0])}${unit}` : `${fmt(r[0])}–${fmt(r[1])}${unit}`) : "–";
+const signed = (v, d = 1) => has(v) ? `${v > 0 ? "+" : v < 0 ? "−" : ""}${fmt(Math.abs(v), d)}` : "–";
+const mmss = (s) => { if (!has(s)) return "–"; const r = Math.round(s), h = Math.floor(r / 3600), m = Math.floor(r % 3600 / 60); return h ? `${h}:${pad(m)}:${pad(r % 60)}` : `${m}:${pad(r % 60)}`; };
+const sessFuel = (f) => f.carbs_g_h[1] ? `${range(f.carbs_g_h)} g/h carbs${f.carbs_total_g ? ` (${range(f.carbs_total_g)} g)` : ""}${f.fluid_ml_h ? ` · ${range(f.fluid_ml_h)} ml/h` : ""}${f.sodium_mg_h ? ` · ${range(f.sodium_mg_h)} mg sodium/h` : ""}`
+  : f.fluid_ml_h ? `water is enough · ${range(f.fluid_ml_h)} ml/h` : "water is enough";
+
+// Steady climbing speed (m/s): same model as nutrition.py (gravity, rolling resistance, air, drivetrain loss).
+function climbSpeed(power, mass, grade, ph) {
+  const th = Math.atan(grade), wheel = power * ph.drivetrain;
+  const need = (v) => mass * 9.81 * v * (Math.sin(th) + ph.crr * Math.cos(th)) + 0.5 * ph.rho * ph.cda * v ** 3;
+  let lo = 0.1, hi = 30;
+  for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (need(mid) < wheel) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+
+function fuelTodayLine(f) {
+  if (!f) return "";
+  const k = FUEL_DAY[f.kind] || FUEL_DAY.normal;
+  const sess = (f.sessions || []).filter((s) => s.carbs_g_h[1]).map((s) => `${SPORT[s.sport] || s.sport}: ${range(s.carbs_g_h)} g/h`).join(" · ");
+  return `<div class="fuel-line"><span class="badge"><span class="dot" style="background:${k[1]}"></span>${esc(k[0])}</span>
+    <span>Carbs <b>${range(f.carbs_g)} g</b> <span class="muted">(${range(f.carbs_g_kg)} g/kg)</span> · protein <b>${range(f.protein_g)} g</b>${sess ? ` · ${esc(sess)}` : ""}</span>
+    <a href="#nutrition">Nutrition ›</a></div>`;
+}
+
+function carbLadder(x) {
+  const lo = x.carbs_g_kg[0], hi = x.carbs_g_kg[1], c = { rest: "easy", light: "easy", moderate: "moderate", high: "hard" }[x.load] || "easy";
+  return `<span class="ladder" role="img" aria-label="${lo} to ${hi} g carbs per kg"><span style="left:${lo / 12 * 100}%;width:${(hi - lo) / 12 * 100}%;background:var(--int-${c})"></span></span>`;
+}
+
+function viewNutrition() {
+  return lazy("/api/view/nutrition", (n) => {
+    const w = n.weight, g = w.goal, r = w.rate, kg = n.weight_kg_used;
+    const xmin = addDays(n.today, -179);
+    const pts = w.points.filter((p) => p.date >= xmin);
+    mount("nu-weight", (c) => xyChart(c, { x: "time", xmin, xmax: n.today, height: 190, aria: "Body weight", yfmt: (v) => fmt(v, 1), empty: "No weigh-ins yet: log one below.",
+      refs: g ? [{ y: g.target_kg, label: `target ${fmt(g.target_kg, 1)} kg` }] : [],
+      series: [{ points: pts.map((p) => [p.date, p.kg, { name: p.source === "manual" ? "logged" + (p.note ? `: ${p.note}` : "") : "scale" }]), color: "var(--muted)", kind: "dots", label: "Weigh-in", tfmt: (v) => fmt(v, 1) + " kg" },
+        { points: w.trend.filter((t) => t.date >= xmin && pts.length).map((t) => [t.date, t.trend]), color: "var(--series-1)", label: "Trend", tfmt: (v) => fmt(v, 1) + " kg" }] }));
+    const weeks = n.energy.weeks;
+    mount("nu-energy", (c) => stackBars(c, weeks.map((x, i) => ({ key: x.week_of, label: dshort(x.week_of), current: i === weeks.length - 1,
+      segs: [[x.training_kcal_day, "var(--series-1)", "Training"]],
+      tip: `<div><b>Week of ${esc(dshort(x.week_of))}</b></div><div>Training ${fmt(x.training_kcal)} kcal · ${fmt(x.hours, 1)} h</div><div>≈ ${fmt(x.training_kcal_day)} kcal/day on top of daily life</div>${x.total_kcal_day ? `<div>Total ≈ ${fmt(x.total_kcal_day)} kcal/day</div>` : ""}` })),
+      { height: 130, aria: "Training energy per day, by week" }));
+    POST.push(bindNutrition);
+
+    const pct = r && kg ? -r.kg_per_week / kg * 100 : null;
+    const verdictColor = !g ? null : /on track|at target/.test(g.verdict || "") ? "var(--good)" : /too steep/.test(g.verdict || "") ? "var(--critical)" : "var(--warning)";
+    const latest = w.latest ? `latest ${fmt(w.latest.kg, 1)} kg · ${dshort(w.latest.date)}` : "no weigh-ins";
+    const head = `<section class="card"><h1 class="headline">Nutrition &amp; weight</h1>
+      <div class="subhead">Fuel the work, lose weight only where it doesn't cost training.</div>
+      <div class="stats" style="margin-top:12px">${statBox(kg ? `${fmt(kg, 1)}<small>kg</small>` : "–", `Trend weight · ${latest}`)}
+        ${statBox(r ? `${signed(r.kg_per_week, 2)}<small>kg/wk</small>` : "–", r ? `Last 4 weeks · ${fmt(Math.abs(pct), 1)}% of body weight · safe ≤ ${fmt(w.safe_loss_kg_week, 2)}` : "Rate: needs 3+ weigh-ins over 10+ days")}
+        ${statBox(g ? `${fmt(g.target_kg, 1)}<small>kg</small>` : "–", g ? `Target${g.by ? ` by ${dshort(g.by)}` : ""} · ${fmt(g.to_go_kg, 1)} kg to go${has(g.needed_kg_week) ? ` · needs ${signed(g.needed_kg_week, 2)}/wk` : ""}` : "No target: agree one with the coach")}
+        ${statBox(n.wkg ? `${fmt(n.wkg, 2)}<small>W/kg</small>` : "–", n.wkg ? `FTP ${fmt(n.ftp)} W at trend weight${n.wkg_at_target ? ` · ${fmt(n.wkg_at_target, 2)} at target` : ""}` : "Needs FTP and weight")}</div>
+      ${g && g.verdict ? `<div class="row"><span class="badge"><span class="dot" style="background:${verdictColor}"></span>${esc(g.verdict)}</span>
+        ${w.lock_from ? `<span class="muted">Hold weight from ${esc(dshort(w.lock_from))} (3 weeks before ${esc(shortName(w.a_event.name, 36))})${has(w.projected_at_a_event) ? ` · on the current trend: ${fmt(w.projected_at_a_event, 1)} kg by then` : ""}</span>` : ""}</div>` : ""}
+      ${n.findings.length ? `<div style="margin-top:8px">${topList(n.findings.map(findingRow), 2)}</div>` : ""}</section>`;
+
+    const strategy = `<section class="card"><h2>Nutrition plan <span class="muted">${n.strategy ? `from the coach · ${esc(n.strategy.updated.replace("T", " "))}` : "from the coach"}</span></h2>
+      ${n.strategy ? richText(n.strategy.text) : '<div class="empty">No nutrition plan yet. Ask the coach: weight target and timeline, deficit size and days, protein, in-ride fueling practice, race week.</div>'}</section>`;
+
+    const logged = n.manual.map((m) => `<tr><td>${esc(dshort(m.date))}</td><td class="num">${fmt(m.weight_kg, 1)}</td><td>${esc(m.note || "")}</td><td class="num"><button class="btn link" data-del="${m.date}" aria-label="Delete weigh-in of ${esc(dshort(m.date))}">Delete</button></td></tr>`).join("");
+    const weightCard = `<section class="card"><h2>Body weight <span class="muted">last 6 months</span></h2>
+      <div class="legend"><span class="key"><span class="sw" style="background:var(--muted);border-radius:50%"></span>Weigh-in (scale or logged)</span><span class="key"><span class="line" style="background:var(--series-1)"></span>Trend (~10-day smoothing)</span>${g ? '<span class="key"><span class="line dash"></span>Target</span>' : ""}</div>
+      <div class="chart" id="nu-weight"></div>
+      <div class="stats" style="margin-top:6px">${statBox(signed(w.change_30d), "kg in 30 days")}${statBox(signed(w.change_90d), "kg in 90 days")}${statBox(String(w.weigh_ins_28d), "weigh-ins, last 4 weeks")}</div>
+      <div class="section-label">Log a weigh-in <span class="muted">morning, after the toilet, before food or drink</span></div>
+      <div class="field" id="nu-form"><input id="nu-date" type="date" value="${n.today}" max="${n.today}" aria-label="Date" style="flex:0 1 160px">
+        <input id="nu-kg" type="number" step="0.1" min="30" max="250" inputmode="decimal" placeholder="kg" aria-label="Weight in kg" style="flex:0 1 110px">
+        <input id="nu-note" type="text" maxlength="80" placeholder="Note (optional)" aria-label="Note">
+        <button class="btn primary" id="nu-save">Save</button></div>
+      <div class="msg" id="nu-msg"></div>
+      ${logged ? `<details style="margin-top:8px"><summary>Logged by hand (${n.manual.length})</summary><div class="scroll"><table><thead><tr><th>Date</th><th class="num">kg</th><th>Note</th><th></th></tr></thead><tbody>${logged}</tbody></table></div></details>` : ""}</section>`;
+
+    const dayRows = n.days.map((x) => {
+      const k = FUEL_DAY[x.kind] || FUEL_DAY.normal;
+      const sess = (x.sessions || []).map((s) => `<div class="fuel-sess">${sportTag(s.sport)}${esc(s.title || typeName(s.type))} <span class="muted">${esc(hm(s.minutes))}</span> · ${s.carbs_g_h[1] ? `<b>${range(s.carbs_g_h)} g/h</b>` : '<span class="muted">water</span>'}</div>`).join("");
+      const notes = ["race", "carb_load"].includes(x.kind) ? (x.notes || []).map((t) => `<div class="sub">${esc(t)}</div>`).join("") : "";
+      return `<tr><td style="white-space:nowrap"><a href="#plan/day/${x.date}"><b>${esc(wday(x.date))}</b> ${esc(dshort(x.date))}</a></td>
+        <td><span class="badge"><span class="dot" style="background:${k[1]}"></span>${esc(k[0])}</span></td>
+        <td class="num" style="white-space:nowrap"><b>${range(x.carbs_g)}</b> g<div class="muted">${range(x.carbs_g_kg)} g/kg</div>${carbLadder(x)}</td>
+        <td class="num" style="white-space:nowrap">${range(x.protein_g)} g</td>
+        <td>${sess || '<span class="muted">Rest</span>'}${notes}</td></tr>`;
+    });
+    const daysCard = `<section class="card"><h2>Fueling, next 14 days <span class="muted">from the saved plan · at ${fmt(kg, 1)} kg</span></h2>
+      <div class="scroll"><table class="fuel-table"><thead><tr><th>Day</th><th>Type</th><th class="num">Carbs</th><th class="num">Protein</th><th>During the session</th></tr></thead><tbody>${dayRows.slice(0, 7).join("")}</tbody></table></div>
+      ${dayRows.length > 7 ? `<details class="more-items"><summary>The 7 days after</summary><div class="scroll"><table class="fuel-table"><tbody>${dayRows.slice(7).join("")}</tbody></table></div></details>` : ""}
+      ${help(`<b>Fuel up</b>: key or long session today or tomorrow. <b>Deficit OK</b>: easy day, 300–500 kcal less is fine (less fat and snacks, keep protein). <b>Maintenance</b>: eat to appetite. <b>Carb load</b>: the 1–2 days before a race.<br>
+        Carbs scale with the day's training (3–5 g/kg rest, 5–7 for 1–2 h, 6–8 for 2–3 h or intensity, 8–12 for long days). Protein ${n.losing ? "2.0–2.4 g/kg while losing weight" : "1.6–2.2 g/kg"}, in 4 portions.<br>
+        Hard or long sessions: ${kg ? `${fmt(kg)}–${fmt(2 * kg)}` : "1–2 g/kg"} g carbs 2–3 h before; within 1–2 h after: ${kg ? `${fmt(0.3 * kg)}–${fmt(0.4 * kg)} g protein and ${fmt(kg)}–${fmt(1.2 * kg)} g carbs` : "0.3–0.4 g/kg protein and 1–1.2 g/kg carbs"}. Sessions over 60 min: 500–750 ml fluid/h, over 90 min also 300–600 mg sodium/h.`)}</section>`;
+
+    const raceRows = n.races.map((e) => `<tr><td><b>${esc(shortName(e.name, 36))}</b><div class="muted">${esc(e.priority)} · ${esc(dshort(e.date))} · in ${e.days_to_go} d</div></td>
+      <td class="num">${e.duration_h ? `≈ ${esc(hm(e.duration_h * 60))}` : "–"}</td>
+      <td class="num">${!e.duration_h ? "–" : e.duration_h >= 1 ? `<b>${range(e.carbs_g_h)}</b>` : '<span class="muted">none</span>'}</td>
+      <td class="num">${e.duration_h >= 1 ? `${range(e.carbs_total_g)} g` : "–"}</td>
+      <td class="num">${e.duration_h >= 1 ? `${range(e.fluid_l)} l${e.bottles ? `<div class="muted">≈${e.bottles} bottles</div>` : ""}` : "–"}</td>
+      <td class="num">${e.carb_load ? `${range(e.carb_load.g_day)} g/day<div class="muted">${e.carb_load.days} ${e.carb_load.days === 1 ? "day" : "days"} before</div>` : "–"}</td></tr>`).join("");
+    const noFuelPlan = n.races.filter((e) => e.duration_h >= 1.5 && !e.race_plan_has_fueling);
+    const racesCard = n.races.length ? `<section class="card"><h2>Race fueling <span class="muted">estimated from course and FTP</span></h2>
+      <div class="scroll"><table><thead><tr><th>Race</th><th class="num">Time</th><th class="num">Carbs g/h</th><th class="num">Total</th><th class="num">Fluid</th><th class="num">Carb load</th></tr></thead><tbody>${raceRows}</tbody></table></div>
+      ${noFuelPlan.length ? `<div class="sub" style="margin-top:6px">No fueling schedule in the race plan of ${esc(noFuelPlan.map((e) => shortName(e.name, 36)).join(", "))} yet: ask the coach.</div>` : ""}
+      ${help("Start eating in the first 20–30 min and keep to a schedule (e.g. every 20 min), not hunger. Races under an hour: a carb mouth rinse or one gel 10–15 min before the start is enough. Breakfast 1–3 g/kg carbs 3 h before. Carb loading adds ~1–2 kg of glycogen and water on the scale: fuel, not fat. 80–120 g/h only with a trained gut: build up over 6–8 weeks of long rides with your race products. A race shows no time until it has a distance and climbing (or an expected time).")}</section>` : "";
+    const climbRows = n.climbs.map((c, i) => `<tr><td><b>${esc(c.name)}</b>${c.event && !c.from_event ? `<div class="muted">${esc(shortName(c.event))}</div>` : ""}</td><td class="num">${fmt(c.length_km, 1)} km · ${fmt(c.grade_pct, 1)}%</td>
+      <td class="num">${fmt(c.power_w)} W<div class="muted">${esc(c.power_basis)}</div></td><td class="num">${mmss(c.time_s)}</td><td class="num">${has(c.time_at_target_s) ? `${mmss(c.time_at_target_s)}<div class="muted">−${mmss(c.saved_s)} · or +${fmt(c.equivalent_w)} W</div>` : "–"}</td>
+      <td class="num">${fmt(c.per_kg_s)} s</td><td class="num"><button class="btn link" data-climb="${i}">Calculator</button></td></tr>`).join("");
+    const ph = n.physics, c0 = n.climbs[0];
+    const climbCard = `<section class="card"><h2>What a kilo is worth on the climbs <span class="muted">power vs weight</span></h2>
+      ${climbRows ? `<div class="scroll"><table><thead><tr><th>Climb</th><th class="num">Length</th><th class="num">Power</th><th class="num">Now (${fmt(kg, 1)} kg)</th><th class="num">At target${n.profile.target_weight_kg ? ` (${fmt(n.profile.target_weight_kg, 1)} kg)` : ""}</th><th class="num">Per kg</th><th></th></tr></thead><tbody>${climbRows}</tbody></table></div>`
+        : '<div class="empty">No key climbs saved. Ask the coach to save the climbs of your mountain events (length, climbing, event).</div>'}
+      <details class="calc-box"><summary>Climb calculator: try your own length, power and weight</summary>
+      <div class="calc" id="nu-calc" data-ph='${esc(JSON.stringify(ph))}'>
+        <label>Length km<input type="number" id="cc-km" step="0.1" min="0.5" value="${c0 ? c0.length_km : 10}"></label>
+        <label>Climbing m<input type="number" id="cc-m" step="10" min="0" value="${c0 ? c0.gain_m : 700}"></label>
+        <label>Power W<input type="number" id="cc-w" step="5" min="50" value="${c0 ? c0.power_w : Math.round((n.ftp || 250) * 0.9)}"></label>
+        <label>Rider kg<input type="number" id="cc-kg" step="0.5" min="30" value="${fmt(kg || 75, 1)}"></label>
+        <label>Bike + kit kg<input type="number" id="cc-bike" step="0.5" min="4" value="${ph.bike_kg}"></label></div>
+      <div id="cc-out" class="calc-out"></div></details>
+      ${help(`Steady power, no wind, CdA ${ph.cda} m², Crr ${ph.crr}. On a 7% climb about 90% of your power lifts mass, so 1 kg less is worth roughly your power ÷ system mass in watts. Losing weight only pays if the power stays: a deficit on key days costs more watts than it saves kilos.`)}</section>`;
+
+    const longRows = n.energy.long_sessions.map((s) => `<tr><td style="white-space:nowrap">${esc(dshort(s.date))}</td><td>${sportTag(s.sport)}<a href="${sessionHref(s.id)}">${esc(s.name || "")}</a></td><td class="num">${fmt(s.hours, 1)} h</td>
+      <td class="num">${fmt(s.kcal)}<div class="muted">${s.kcal_source === "power" ? "from power" : "watch"}</div></td><td class="num">${fmt(s.if, 2)}</td><td class="num">${fmt(s.carbs_burned_g_h)}</td><td class="num">${fmt(s.advised_g_h)}</td>
+      <td class="num">${has(s.decoupling_pct) ? `${s.fueling_flag ? '<span title="drift over 8%">! </span>' : ""}${fmt(s.decoupling_pct, 1)}%` : "–"}</td></tr>`).join("");
+    const bmrNote = n.energy.bmr_kcal ? `Resting ≈ ${fmt(n.energy.bmr_kcal)} kcal/day (${esc(n.energy.bmr_basis)}), daily life ×${n.energy.daily_life_factor}.` : "";
+    const energyCard = `<section class="card"><h2>Energy spent in training <span class="muted">kcal per day, by week</span></h2>
+      <div class="chart" id="nu-energy"></div>
+      ${help(`${bmrNote} Bike work from power (1 kJ ≈ 1 kcal burned), other sessions from the watch. Watches overestimate; treat it as a ratio between weeks, not a menu.`)}
+      <div class="section-label">Long sessions (2 h+), last 8 weeks</div>
+      ${longRows ? `<div class="scroll"><table><thead><tr><th>Date</th><th>Session</th><th class="num">Time</th><th class="num">kcal</th><th class="num">IF</th><th class="num">Carbs burned g/h</th><th class="num">Advised intake g/h</th><th class="num">Drift</th></tr></thead><tbody>${longRows}</tbody></table></div>
+        ${help("Carbs burned estimated from kcal and intensity. You can't replace all of it during the ride; aim for the advised intake and make up the rest after. Drift over 8% late in a long ride often means under-fueling.")}` : '<div class="empty">No sessions over 2 h in the last 8 weeks.</div>'}</section>`;
+
+    const basics = `<section class="card"><details><summary>Ground rules</summary><ul class="flags" style="margin-top:8px">
+      <li>Lose at most ~0.5% of body weight per week (≈${fmt(w.safe_loss_kg_week, 2)} kg for you), from small deficits on easy and rest days. Never cut on key-session days or the day before.</li>
+      <li>Stop the deficit 3 weeks before an A event and race at a stable weight. Off-season and base are the time to lose; build and peak are for fueling.</li>
+      <li>Protein ${n.losing ? "2.0–2.4" : "1.6–2.2"} g/kg per day, spread over 4 meals; 0.3–0.4 g/kg after hard sessions and before sleep.</li>
+      <li>During rides: nothing needed under 60 min, 30–60 g/h up to 90 min, 60–90 g/h beyond, 80–120 g/h in races if trained. 500–750 ml fluid and 300–600 mg sodium per hour.</li>
+      <li>Under-fueling shows as heavy legs, late-ride fade, poor sleep, low mood, frequent colds or a dropping HRV. Together with weight loss, ${{ f: "missed or irregular periods", m: "low libido" }[n.profile.sex] || "missed periods or low libido"} or bone pain, it can be low energy availability (RED-S): see a sports physician or dietitian.</li>
+      </ul></details></section>`;
+
+    return `${head}<div class="grid two">${weightCard}${strategy}</div>${daysCard}${climbCard}${racesCard}${moreSections("More: training energy, long rides, ground rules", energyCard + basics)}`;
+  });
+}
+
+function bindNutrition() {
+  const msg = document.getElementById("nu-msg");
+  const refresh = () => { const v = VIEWS["/api/view/nutrition"]; if (v) v.stale = true; load(); };
+  document.getElementById("nu-save")?.addEventListener("click", async () => {
+    const kg = document.getElementById("nu-kg").value;
+    if (!kg) { msg.textContent = "Enter your weight in kg."; msg.className = "msg err"; return; }
+    msg.textContent = "Saving…"; msg.className = "msg";
+    try {
+      await api("/api/weight", { date: document.getElementById("nu-date").value, weight_kg: Number(kg), note: document.getElementById("nu-note").value });
+      refresh();
+    } catch (e) { msg.textContent = e.message; msg.className = "msg err"; }
+  });
+  document.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
+    try { await api("/api/weight/delete", { date: b.dataset.del }); refresh(); } catch (e) { msg.textContent = e.message; msg.className = "msg err"; }
+  }));
+  const calc = document.getElementById("nu-calc");
+  if (!calc) return;
+  const ph = JSON.parse(calc.dataset.ph), v = (id) => Number(document.getElementById(id).value);
+  const update = () => {
+    const km = v("cc-km"), m = v("cc-m"), w = v("cc-w"), kg = v("cc-kg"), bike = v("cc-bike"), out = document.getElementById("cc-out");
+    if (!(km > 0 && w > 0 && kg > 0)) { out.innerHTML = ""; return; }
+    const grade = m / (km * 1000), t = (mass) => km * 1000 / climbSpeed(w, mass, grade, ph);
+    const now = t(kg + bike), less = (d) => now - t(kg - d + bike);
+    out.innerHTML = `<div class="stats">${statBox(mmss(now), `${fmt(grade * 100, 1)}% · ${fmt(km * 3600 / now, 1)} km/h`)}${statBox(`${fmt(w / kg, 2)}<small>W/kg</small>`, `VAM ${fmt(m / now * 3600)} m/h`)}
+      ${statBox(`−${fmt(less(1))}<small>s</small>`, "1 kg lighter")}${statBox(`−${fmt(less(3))}<small>s</small>`, "3 kg lighter")}${statBox(`−${fmt(now - km * 1000 / climbSpeed(w + 10, kg + bike, grade, ph))}<small>s</small>`, "10 W more")}</div>`;
+  };
+  calc.querySelectorAll("input").forEach((i) => i.addEventListener("input", update));
+  document.querySelectorAll("[data-climb]").forEach((b) => b.addEventListener("click", () => {
+    const c = VIEWS["/api/view/nutrition"].data.climbs[Number(b.dataset.climb)];
+    document.getElementById("cc-km").value = c.length_km; document.getElementById("cc-m").value = c.gain_m; document.getElementById("cc-w").value = c.power_w;
+    calc.closest("details").open = true;
+    update(); calc.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }));
+  update();
 }
 
 // ---------------------------------------------------------------- Settings
@@ -1900,8 +2132,14 @@ function render() {
   const d = DATA, parts = route(), tab = parts[0];
   document.title = d.app.title;
   document.getElementById("title").textContent = d.app.title;
-  const active = tab === "session" ? "sessions" : tab;
-  document.getElementById("tabs").innerHTML = TABS().map(([k, label]) => `<a href="#${k}" ${k === active ? 'aria-current="page"' : ""}>${label}</a>`).join("");
+  const active = tab === "session" ? "sessions" : tab, labels = Object.fromEntries(TABS());
+  const section = SECTIONS.find((s) => s[2].includes(active)) || SECTIONS[0];
+  lastPage[section[0]] = active;
+  document.getElementById("tabs").innerHTML = SECTIONS.map(([k, label, pages]) => k === "settings"
+    ? `<a href="#settings" class="gear${k === section[0] ? " on" : ""}" title="Settings" aria-label="Settings"${k === section[0] ? ' aria-current="page"' : ""}>⚙</a>`
+    : `<a href="#${lastPage[k] || pages[0]}"${k === section[0] ? ' class="on" aria-current="true"' : ""}>${label}</a>`).join("");
+  document.getElementById("subtabs").innerHTML = section[2].length > 1
+    ? section[2].map((k) => `<a href="#${k}"${k === active ? ' aria-current="page"' : ""}>${esc(labels[k])}</a>`).join("") : "";
   POST = [];
   hideTip();
   let html;
@@ -1910,7 +2148,7 @@ function render() {
   else if (tab === "plan" && parts[1] === "day") html = viewDay(d, parts[2]);
   else if (tab === "session") html = viewSession(d, parts[1]);
   else if (tab === "sports") html = viewSport(d, parts[1]);
-  else html = { today: viewToday, plan: viewPlan, races: viewRaces, progress: viewProgress, recovery: viewRecovery, health: viewHealth, sleep: viewSleep, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
+  else html = { today: viewToday, plan: viewPlan, races: viewRaces, progress: viewProgress, recovery: viewRecovery, health: viewHealth, sleep: viewSleep, nutrition: viewNutrition, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
   document.getElementById("app").innerHTML = html;
   POST.forEach((f) => f());
   if (tab === "settings") renderSettings();
@@ -1925,8 +2163,8 @@ async function load() {
     if (!res.ok) throw new Error((await res.json()).error || res.status);
     DATA = await res.json();
     Object.values(VIEWS).forEach((v) => { v.stale = true; });
-    // Don't wipe a half-typed key or login address on the Settings tab.
-    if (route()[0] === "settings" && document.activeElement?.tagName === "INPUT") return;
+    // Don't wipe a half-typed key, login address or weigh-in.
+    if (["settings", "nutrition"].includes(route()[0]) && document.activeElement?.tagName === "INPUT") return;
     render();
   } catch (e) {
     document.getElementById("meta").innerHTML = `<span class="err">Could not load data: ${esc(e.message)}</span>`;

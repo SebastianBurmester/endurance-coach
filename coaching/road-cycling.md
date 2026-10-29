@@ -40,6 +40,21 @@ athlete agrees. LTHR: a 20-min test (avg HR × 0.95) or a hard 30-min solo effor
 - Off the bike: 2× per week strength in base (squat/deadlift/lunges/core), 1× in build, none in race week. Easy runs
   or swims are fine as cross-training on easy days; keep them out of the 24 h before key rides.
 
+## Weight and nutrition
+
+- On long climbs W/kg decides. `nutrition_overview` shows what a kilo is worth on the key climbs (seconds per kg and
+  the watts that buy the same time): use it to keep weight goals in proportion. 1 kg less is worth roughly
+  power ÷ (rider + bike) watts; a deficit that costs 3-5% FTP loses more than it gains.
+- Lose weight in the off-season and base: at most ~0.5% of body weight per week, from 300-500 kcal deficits on
+  easy and rest days (`kind: deficit_ok`). Fuel every key session and long ride fully, including the day before.
+  Build and peak are for performance, not for cutting. Hold weight from 3 weeks before an A event (`lock_from`).
+- Protein 1.6-2.2 g/kg (2.0-2.4 in a deficit), 4 portions of 0.3-0.4 g/kg. Carbs by the day's work: 3-5 g/kg on
+  rest days up to 8-12 g/kg on long days and before mountain events.
+- Gut training: build in-ride carbs toward 80-100 g/h over 6-8 weeks of long rides with race products, so a
+  5-hour mountain fondo can be fuelled at 80-120 g/h. Put the per-hour schedule in the race plan.
+- Missing weigh-ins: ask for 3-4 morning weigh-ins a week (scale sync or `log_weight`). Missing body data for the
+  energy estimate (height, birth year, sex) or key climbs of an event: ask once and save them.
+
 ## Writing workouts
 
 Write each ride as a compact table (step, duration, target watts and % FTP, cadence, notes) the athlete can enter in

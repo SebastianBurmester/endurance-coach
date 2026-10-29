@@ -21,6 +21,9 @@ description: Build or rebuild a training plan or block (e.g. "plan the next 12 w
      sweet spot / threshold for fondos, VO2 and anaerobic work for road races and crits).
    - Triathlon: split hours across swim / bike / run to fit the race and the weakest discipline, run volume
      +10%/week at most, bricks from build on, intensity matched to the race format.
+   - Weight goal (profile `target_weight_kg` or the athlete asks): place the deficit in base, check the needed rate
+     in `nutrition_overview` (≤0.5%/week), hold weight from 3 weeks before the A event, and build in-ride carbs
+     over the long rides. Save the approach with `save_nutrition_plan`.
 4. Show the plan before saving: a block summary (phase, weeks, goal, weekly hours/TSS, per sport for triathlon),
    then week 1-2 in full detail and later weeks as a compact week-by-week outline.
 5. After the athlete agrees, save with `save_plan`:

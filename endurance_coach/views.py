@@ -617,8 +617,9 @@ def races(end: date | None = None) -> dict[str, Any]:
 
 
 def save_race_plan(event_date: str, race_plan: str | None = None, result: str | None = None,
-                   name: str | None = None) -> dict[str, Any]:
-    """Store the coach's race plan (pacing, fueling, logistics) or the result for one event in athlete.json."""
+                   name: str | None = None, course: dict[str, float | None] | None = None) -> dict[str, Any]:
+    """Store the coach's race plan (pacing, fueling, logistics), the result or the course (distance_km, elevation_m,
+    expected_duration_h) for one event in athlete.json."""
     profile = athlete.load()
     matches = [e for e in profile.get("events") or [] if e.get("date") == event_date and (not name or e.get("name") == name)]
     if not matches:
@@ -629,5 +630,6 @@ def save_race_plan(event_date: str, race_plan: str | None = None, result: str | 
         event["race_plan"], event["race_plan_updated"] = race_plan.strip(), stamp
     if result is not None:
         event["result"], event["result_updated"] = result.strip(), stamp
+    event.update({k: v for k, v in (course or {}).items() if v is not None})
     athlete.save(profile)
     return {"saved": event}

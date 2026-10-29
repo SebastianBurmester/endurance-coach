@@ -13,8 +13,10 @@ watch's recovery gauge (Garmin Body Battery or COROS recovery), and a sleep anal
 debt, stages, and how training load, late sessions, evening yoga, stress and bedtime relate to the night after).
 The dashboard adds Races (countdown, projected race-day form, taper, race plan), per-sport views (volume, run ramp
 checks, zones, power curve), Progress (thresholds, CTL, efficiency and pace trends), Recovery (readiness calendar,
-strain episodes, bounce-back after big days) and a page per session (streams, laps, intervals, zones). Plans, plan-vs-actual and a load projection are
-stored locally and shown on the dashboard.
+strain episodes, bounce-back after big days), Nutrition (weight trend vs target with manual weigh-ins, W/kg and
+time per kg on the key climbs, carbs / protein per planned day, session and race fueling, training energy) and a
+page per session (streams, laps, intervals, zones). Plans, plan-vs-actual and a load projection are stored locally
+and shown on the dashboard.
 
 ## One checkout per athlete
 

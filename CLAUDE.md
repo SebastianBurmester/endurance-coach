@@ -51,6 +51,8 @@ after the athlete agrees to the number.
 | Readiness history, strain episodes, how fast big days are absorbed | `recovery_history` |
 | One sport: volume, run ramp, zones, trends, sessions | `sport_overview` |
 | Events: projected race-day form, taper, key sessions left; save the race plan / result | `race_overview`, `save_race_plan` |
+| Weight trend vs target, W/kg, time per kg on key climbs, carbs / protein per planned day, session and race fueling | `nutrition_overview` |
+| Record a weigh-in the athlete reports; save the nutrition strategy and key climbs | `log_weight`, `save_nutrition_plan` |
 | Week review incl. plan vs actual | `week_summary` |
 | Read the plan (+ compliance, projected CTL/TSB) | `get_plan` |
 | Write / change the plan | `save_plan`, `adjust_planned_session`, `clear_plan` |
@@ -72,6 +74,9 @@ Sessions don't remember each other. The saved plan (`get_plan`) and `athlete.jso
   check-in, review or plan change.
 - Race plans (pacing per discipline, fueling, transitions, logistics) belong to the event: save them with
   `save_race_plan`, and the result after the race. The dashboard's Races tab shows them.
+- The nutrition strategy (weight approach for the phase, deficit days, protein, gut training, race week) is saved
+  with `save_nutrition_plan` and shown on the Nutrition tab. A weight target is a number the athlete agrees to,
+  like a threshold: save it with `update_athlete_profile(target_weight_kg, target_weight_date)` only then.
 - `/training-plan` builds a block, `/checkin` adapts today, `/session-review` judges execution, and `/week-review`
   checks compliance and details next week.
 
@@ -102,6 +107,10 @@ CSS are set, `update_athlete_profile` recomputes everything. Say so when CTL res
   accumulated stress. One low night alone means little. A rising 7-day CV also signals strain.
 - Resting HR ≥5 bpm above the 30-day average, together with low HRV, often means illness, heat, alcohol or deep fatigue.
 - Sleep <6.5 h or a 7-day average <7 h: cap intensity and protect sleep.
+- Weight: judge the trend (`nutrition_overview`), never a single weigh-in. Loss faster than ~0.5% of body weight per
+  week, or weight loss together with falling HRV, rising RHR, poor sleep, low mood, frequent illness or (female)
+  missed periods → stop the deficit and raise low energy availability (RED-S); suggest a sports physician or
+  dietitian. Never prescribe very low calorie or carb intakes, fasted key sessions or dehydration to make weight.
 - The recovery gauge (Garmin Body Battery at wake, COROS recovery %) is the watch's own model: context, not the
   decision.
 - Both sources date sleep and overnight HRV by **wake-up day**.

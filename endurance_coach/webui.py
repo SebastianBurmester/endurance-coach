@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from . import dashboard, settings, store, sync, views
+from . import dashboard, nutrition, settings, store, sync, views
 from .util import js_safe
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,6 +37,8 @@ def _view(path: str, query: dict[str, list[str]]) -> Any:
         return views.recovery()
     if name == "races":
         return views.races()
+    if name == "nutrition":
+        return nutrition.overview()
     if name == "sport":
         sport = (query.get("sport") or ["bike"])[0]
         if sport not in _SPORTS:
@@ -76,6 +78,10 @@ def _change_source(provider: str) -> dict[str, Any]:
 def _post(path: str, body: dict[str, Any]) -> dict[str, Any]:
     from . import coros_api, garmin_api
 
+    if path == "/api/weight":
+        return {"saved": nutrition.log_weight(body.get("weight_kg"), body.get("date"), body.get("note"))}
+    if path == "/api/weight/delete":
+        return nutrition.delete_weight(str(body.get("date") or ""))
     if path == "/api/settings/focus":
         settings.save(focus=body.get("focus"))
     elif path == "/api/settings/source":

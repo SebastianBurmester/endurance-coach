@@ -56,6 +56,16 @@ avg HR × 0.95); until then HR zones and hrTSS use 89% of max HR (`hr_est`).
   target TSB +10 to +25 on race day.
 - Strength: 2× per week in base (squat/deadlift/lunges/calf raises/core/hip stability), 1× in build, none in race week.
 
+## Weight and nutrition
+
+- Fuel the work first: carbs by the day's training (3-5 g/kg rest up to 8-12 g/kg long days), protein 1.6-2.2 g/kg
+  (2.0-2.4 in a deficit). `nutrition_overview` gives the numbers per planned day and per session.
+- Weight loss only if the athlete wants it, in base, at most ~0.5% of body weight per week, from small deficits on
+  easy days; never around key sessions, never in build, peak or the 3 weeks before an A race. Running economy and
+  climbing gain from lower weight only while power and health hold.
+- Long-course races: train the gut toward 60-90 g/h on the bike (more if tolerated), practise race nutrition in long
+  rides and bricks, and save the per-hour fueling in the race plan.
+
 ## Writing workouts
 
 Write each session as a compact table (step | duration or distance | target pace / HR / watts | notes), with

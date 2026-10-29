@@ -63,6 +63,10 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def typical_if(session_type: str | None) -> float:
+    return _TYPICAL_IF.get(session_type or "other", 0.65)
+
+
 def estimated_tss(s: dict[str, Any]) -> float | None:
     if num(s.get("tss")) is not None:
         return float(s["tss"])
@@ -70,7 +74,7 @@ def estimated_tss(s: dict[str, Any]) -> float | None:
         return 0.0
     if not s.get("duration_min"):
         return None
-    intensity = _TYPICAL_IF.get(s.get("type") or "other", 0.65)
+    intensity = typical_if(s.get("type"))
     return round(s["duration_min"] / 60 * intensity**2 * 100)
 
 

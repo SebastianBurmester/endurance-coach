@@ -37,6 +37,12 @@ CREATE TABLE IF NOT EXISTS daily (
     PRIMARY KEY (source, date)
 );
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS body_log (                -- weigh-ins logged by hand; kept when the source changes
+    date TEXT PRIMARY KEY,
+    weight_kg REAL NOT NULL,
+    note TEXT,
+    updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS plan_blocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -70,7 +76,7 @@ CREATE TABLE IF NOT EXISTS planned_sessions (
 
 
 # Meta keys that belong to the athlete, not to the data source's cache; kept when the source changes.
-_KEEP_META = ("coach_note",)
+_KEEP_META = ("coach_note", "nutrition_plan")
 _prepared = False
 
 

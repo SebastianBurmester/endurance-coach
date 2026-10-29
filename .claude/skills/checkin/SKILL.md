@@ -7,7 +7,8 @@ description: Morning coaching check-in. Assesses readiness from HRV, resting HR,
 
 1. Call `daily_readiness` and `training_load` (days=28) in parallel. `daily_readiness` includes
    `planned_today` and `planned_next_3_days` from the saved plan. If the profile has upcoming events, also call
-   `get_athlete_profile`.
+   `get_athlete_profile`. If today's session is 90 min or longer, or the athlete has a weight target, also call
+   `nutrition_overview` (its `days[0]` is today's carbs, protein and in-session fueling).
 2. Decide today's session(s) using the decision rules in CLAUDE.md and the focus guide:
    - **Start from the planned session(s).** Keep (green), modify (amber) or replace with rest or easy recovery (red).
      If nothing is planned, propose a session that fits the current phase, load and (triathlon) the discipline
@@ -30,7 +31,8 @@ description: Morning coaching check-in. Assesses readiness from HRV, resting HR,
    - Load: CTL <ctl> · ATL <atl> · TSB <tsb> · ramp <r>/wk
    - Why: <1-2 sentences linking the numbers to the decision>
 
-   Then the session as a workout table in the focus guide's format, plus fueling.
+   Then the session as a workout table in the focus guide's format, plus fueling (g/h during, the day's carbs,
+   and whether today is a deficit-OK or fuel-up day when a weight target is set).
    On a rest day, give recovery guidance instead.
 5. Post the result to the dashboard with `set_coach_note` (kind `checkin`): the verdict line plus the session in
    one or two short lines (e.g. "Amber: HRV below range 3 nights. Today 75 min Z2 <200 W; VO2 moved to Thu.").

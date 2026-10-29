@@ -20,6 +20,15 @@ DEFAULT_PROFILE: dict[str, Any] = {
     "lthr_run": None,
     "weekly_hours_available": None,
     "sleep_need_h": None,          # hours asleep; the sleep analysis assumes 8 without it
+    # Nutrition tab: weight target (agreed with the athlete), body data for the resting energy estimate, bike
+    # weight for climbing times, and key climbs [{"name", "length_km", "gain_m", "event_date", "power_w"}].
+    "target_weight_kg": None,
+    "target_weight_date": None,
+    "height_cm": None,
+    "birth_year": None,
+    "sex": None,                   # "m" | "f"
+    "bike_kg": None,               # bike + bottles + kit; 9 kg without it
+    "key_climbs": [],
     "goals": [],
     "events": [],  # [{"date": "2027-06-20", "name": "Zurich 70.3", "priority": "A", "format": "70.3"}]
     "notes": "",

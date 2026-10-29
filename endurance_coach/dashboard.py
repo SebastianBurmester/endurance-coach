@@ -7,7 +7,7 @@ import time
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from . import athlete, coach, health, plan, settings, sleep, store
+from . import athlete, coach, health, nutrition, plan, settings, sleep, store
 from .config import NON_TRAINING_SPORTS
 from .util import js_safe
 
@@ -137,6 +137,7 @@ def build() -> dict[str, Any]:
                                        "weight_kg")} for r in hrows],
         "weight_kg": th["weight_kg"],
         "sleep": sleep.analysis(end=today),
+        "fuel_today": nutrition.today_fuel(today),
         "load": load,
         "plan": p,
         "recent_sessions": [a for a in coach.list_activities(days=_SESSION_DAYS)

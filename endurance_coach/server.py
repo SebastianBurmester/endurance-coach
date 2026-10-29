@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from . import athlete, coach, dashboard, plan, settings, sleep, sync, views
+from . import athlete, coach, dashboard, nutrition, plan, settings, sleep, sync, views
 from .util import to_date
 
 logging.basicConfig(level=logging.WARNING)
@@ -178,11 +178,46 @@ def race_overview() -> dict[str, Any]:
 
 @mcp.tool()
 def save_race_plan(event_date: str, race_plan: str | None = None, result: str | None = None,
-                   event_name: str | None = None) -> dict[str, Any]:
+                   event_name: str | None = None, distance_km: float | None = None, elevation_m: float | None = None,
+                   expected_duration_h: float | None = None) -> dict[str, Any]:
     """Save the race plan for an event (shown on the dashboard's Races tab): pacing per discipline, fueling and
     fluids per hour, transitions, warm-up, logistics, written like a workout (markdown table, lists, 'Label: text').
-    After the race, save `result` (times, splits, how it went). event_name picks between events on the same date."""
-    return views.save_race_plan(event_date, race_plan, result, event_name)
+    After the race, save `result` (times, splits, how it went). event_name picks between events on the same date.
+    distance_km / elevation_m / expected_duration_h describe the course; race fueling in nutrition_overview uses them
+    (without them it reads '~117 km / ~2800 Hm' from the event name and estimates the duration from FTP)."""
+    return views.save_race_plan(event_date, race_plan, result, event_name,
+                                course={"distance_km": distance_km, "elevation_m": elevation_m,
+                                        "expected_duration_h": expected_duration_h})
+
+
+@mcp.tool()
+def nutrition_overview() -> dict[str, Any]:
+    """Weight and fueling: weigh-ins (scale and logged), trend weight, rate (kg/week over 28 days) vs the safe rate
+    (0.5% of body weight per week), the weight target with a verdict and the date weight is locked before the next A
+    event, W/kg now and at target, key climbs with time at today's weight vs target and seconds per kg, carbs /
+    protein per day for the next 14 planned days (with deficit-OK, fuel-up and carb-load days) and fueling per
+    session (g/h, fluid, sodium, before / after), race fueling per event (duration, carbs per hour and total,
+    bottles, carb load), energy spent in training per week, long sessions with carbs burned vs advised and drift,
+    the saved nutrition strategy, and `findings`. All energy numbers are estimates."""
+    warning = _prefetch()
+    return _wrap(nutrition.overview(), warning)
+
+
+@mcp.tool()
+def log_weight(weight_kg: float, day: str = "today", note: str | None = None) -> dict[str, Any]:
+    """Record a weigh-in the athlete reports (morning, after the toilet, before food). Manual entries win over the
+    scale on the same day and show on the Nutrition tab. Does not change the profile weight."""
+    return nutrition.log_weight(weight_kg, day, note)
+
+
+@mcp.tool()
+def save_nutrition_plan(strategy: str | None = None, key_climbs: list[nutrition.KeyClimb] | None = None) -> dict[str, Any]:
+    """Save the nutrition strategy shown at the top of the dashboard's Nutrition tab: the weight approach for this
+    phase (deficit size and on which days, when to stop), daily carbs / protein habits, in-ride fueling practice and
+    gut training, race-week plan. Markdown, written like a workout. key_climbs replaces the list of climbs whose
+    time per kg is shown (e.g. the climbs of a mountain fondo, with event_date). Agree weight targets with the
+    athlete first and save them with update_athlete_profile(target_weight_kg, target_weight_date)."""
+    return nutrition.save_strategy(strategy, key_climbs)
 
 
 @mcp.tool()
@@ -224,6 +259,12 @@ def update_athlete_profile(
     max_hr: float | None = None,
     weekly_hours_available: float | None = None,
     sleep_need_h: float | None = None,
+    target_weight_kg: float | None = None,
+    target_weight_date: str | None = None,
+    height_cm: float | None = None,
+    birth_year: int | None = None,
+    sex: str | None = None,
+    bike_kg: float | None = None,
     name: str | None = None,
     add_goal: str | None = None,
     add_event_name: str | None = None,
@@ -235,6 +276,9 @@ def update_athlete_profile(
     """Update athlete.json. Thresholds are appended to their history (dated threshold_date, default today):
     ftp in W, run_threshold_pace as 'm:ss' per km, css_pace as 'm:ss' per 100 m. TSS is recomputed afterwards.
     sleep_need_h (hours asleep the athlete feels best on; default 8) sets the target in sleep_analysis.
+    target_weight_kg / target_weight_date (default: three weeks before the next A event) drive nutrition_overview;
+    height_cm, birth_year and sex ('m'/'f') improve its resting energy estimate; bike_kg (bike + bottles + kit,
+    default 9) its climbing times.
     Event priority is A/B/C; format e.g. gran fondo / road race / sprint / olympic / 70.3 / ironman. Only confirm
     values with the athlete."""
     profile = athlete.load()
@@ -245,7 +289,10 @@ def update_athlete_profile(
             athlete.add_threshold(profile, key, float(value), threshold_date, threshold_source)
             changed_thresholds = True
     for key, value in (("weight_kg", weight_kg), ("lthr_bike", lthr_bike), ("lthr_run", lthr_run), ("max_hr", max_hr),
-                       ("weekly_hours_available", weekly_hours_available), ("sleep_need_h", sleep_need_h), ("name", name), ("notes", notes)):
+                       ("weekly_hours_available", weekly_hours_available), ("sleep_need_h", sleep_need_h),
+                       ("target_weight_kg", target_weight_kg), ("target_weight_date", target_weight_date),
+                       ("height_cm", height_cm), ("birth_year", birth_year),
+                       ("sex", sex.lower()[:1] if sex else None), ("bike_kg", bike_kg), ("name", name), ("notes", notes)):
         if value is not None:
             profile[key] = value
     if add_goal:

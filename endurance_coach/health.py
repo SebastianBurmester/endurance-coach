@@ -166,14 +166,20 @@ def rows(start: date, end: date) -> list[dict[str, Any]]:
 
 
 def latest_weight() -> float | None:
-    raw = store.get_meta("coros_user")
-    if raw:
-        return json.loads(raw).get("weight_kg")
+    """The latest weigh-in of the last 60 days (scale or logged by hand), else the COROS profile weight."""
     end = date.today()
-    for r in reversed(rows(end - timedelta(days=60), end)):
-        if r["weight_kg"]:
-            return r["weight_kg"]
-    return None
+    since = (end - timedelta(days=60)).isoformat()
+    with store.connect() as conn:
+        manual = conn.execute("SELECT date, weight_kg FROM body_log WHERE date >= ? ORDER BY date DESC LIMIT 1",
+                              (since,)).fetchone()
+    scale = next(((r["date"], r["weight_kg"]) for r in reversed(rows(end - timedelta(days=60), end)) if r["weight_kg"]), None)
+    # A weigh-in logged by hand wins over the scale on the same day.
+    latest = max([x for x in ((manual["date"], manual["weight_kg"]) if manual else None, scale) if x],
+                 key=lambda x: x[0], default=None)
+    if latest:
+        return latest[1]
+    raw = store.get_meta("coros_user")
+    return json.loads(raw).get("weight_kg") if raw else None
 
 
 def cycle_status(day: date) -> dict[str, Any] | None:
