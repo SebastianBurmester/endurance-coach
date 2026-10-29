@@ -395,6 +395,8 @@ const dlong = (s) => pd(s).toLocaleDateString(undefined, { weekday: "long", day:
 const wday = (s) => WD[(pd(s).getDay() + 6) % 7];
 const hm = (min) => { if (!min) return ""; const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h${m ? pad(m) : ""}` : `${m}min`; };
 const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+// "Engadin Radmarathon - Prolog (Bergzeitfahren …)" -> "Engadin Radmarathon - Prolog", at most 26 characters.
+const shortName = (n) => { const s = String(n || "").split(" (")[0].trim(); return s.length > 26 ? s.slice(0, 25).trimEnd() + "…" : s; };
 const typeName = (t) => (t || "other").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 const sessTss = (s) => s.tss ?? s.tss_est ?? null;
 const todayKey = () => DATA.generated.slice(0, 10);
@@ -486,12 +488,23 @@ function lineChart(container, opts) {
     el("line", { x1: x(ti), x2: x(ti), y1: m.t, y2: H - m.b, stroke: "var(--axis)", "stroke-width": 1 }, svg);
     const t = el("text", { x: x(ti) + 4, y: m.t + 10, fill: "var(--muted)", "font-size": 11 }, svg); t.textContent = "today → plan";
   }
-  for (const ev of opts.events || []) {
+  // Event names at the bottom of the plot (clear of "today → plan" at the top), shortened and stacked in up to
+  // three rows so neighbouring races don't overlap; the full name is in the tooltip.
+  const lanes = [];
+  for (const ev of [...(opts.events || [])].sort((a, b) => a.date.localeCompare(b.date))) {
     const i = rows.findIndex((r) => r.date === ev.date);
     if (i < 0) continue;
     el("line", { x1: x(i), x2: x(i), y1: m.t, y2: H - m.b, stroke: "var(--ink-2)", "stroke-width": 1 }, svg);
-    // Bottom of the plot, so it never collides with the "today → plan" label at the top.
-    const t = el("text", { x: x(i) - 4, y: H - m.b - 6, "text-anchor": "end", fill: "var(--ink-2)", "font-size": 11 }, svg); t.textContent = ev.name;
+    const label = shortName(ev.name), w = label.length * 6 + 4;
+    const before = x(i) - 4 - w >= m.l;
+    const left = before ? x(i) - 4 - w : x(i) + 4;
+    let lane = lanes.findIndex((end) => end < left - 4);
+    if (lane < 0 && lanes.length < 3) lane = lanes.push(-Infinity) - 1;
+    if (lane < 0) continue;
+    lanes[lane] = left + w;
+    const t = el("text", { x: before ? x(i) - 4 : x(i) + 4, y: H - m.b - 6 - lane * 13, "text-anchor": before ? "end" : "start", fill: "var(--ink-2)", "font-size": 11,
+      "paint-order": "stroke", stroke: "var(--surface)", "stroke-width": 3 }, svg);
+    t.textContent = label;
   }
   for (const s of opts.series) {
     const seg = (pred, dashed) => {
@@ -530,7 +543,8 @@ function lineChart(container, opts) {
     const lines = (opts.tipRows || opts.series.map((s) => [s.label, s.key, s.color])).map(([label, key, color]) =>
       `<div>${color ? `<span class="k" style="background:${color}"></span>` : ""}${esc(label)}: <b>${fmt(r[key], opts.decimals || 0)}</b></div>`).join("");
     const cbox = container.getBoundingClientRect();
-    showTip(`<div><b>${esc(dshort(r.date))}</b>${r.projected ? " · planned" : ""}</div>${lines}`,
+    const evs = (opts.events || []).filter((e) => e.date === r.date).map((e) => `<div>⚑ ${esc(e.name)}</div>`).join("");
+    showTip(`<div><b>${esc(dshort(r.date))}</b>${r.projected ? " · planned" : ""}</div>${evs}${lines}`,
       cbox.left + window.scrollX + (x(i) / W) * box.width, cbox.top + window.scrollY + (Math.min(...opts.series.map((s) => r[s.key] ?? hi).map(y)) / H) * box.height);
   };
   const leave = () => { cross.setAttribute("opacity", 0); dots.forEach((d) => d.setAttribute("opacity", 0)); hideTip(); };
@@ -696,7 +710,7 @@ function borne(d) {
   const ev = (d.events || [])[0];
   let cap, num, unit, lines;
   if (ev) {
-    cap = ev.name; num = ev.days_to_go; unit = num === 1 ? "day to go" : "days to go";
+    cap = shortName(ev.name); num = ev.days_to_go; unit = num === 1 ? "day to go" : "days to go";
     lines = [dshort(ev.date), ev.projected_tsb !== null && ev.projected_tsb !== undefined ? `form ${ev.projected_tsb > 0 ? "+" : ""}${fmt(ev.projected_tsb)} on the day` : ""];
   } else {
     const b = blockOfDay(todayKey());
@@ -1321,6 +1335,7 @@ const sessionHref = (id) => `#session/${id}`;
 const paceFmt = (v) => pace(v);
 const VERDICT_BADGE = {
   improving: ["Improving", "var(--good)", "▲"], declining: ["Slipping", "var(--critical)", "▼"], stable: ["Stable", "var(--muted)", "="],
+  up: ["Higher", "var(--muted)", "▲"], down: ["Lower", "var(--muted)", "▼"],
 };
 const levelIcon = { good: ["✓", "var(--good)", "#fff"], warn: ["!", "var(--warning)", "var(--marker-ink)"], info: ["i", "var(--muted)", "#fff"] };
 const noteRow = (level, text, title) => { const [ic, bg, ink] = levelIcon[level] || levelIcon.info;
@@ -1500,14 +1515,15 @@ function powerCurveCard(pc, id) {
 function viewProgress() {
   return lazy("/api/view/progress", (p) => {
     const t = p.thresholds, f = p.fitness;
-    const hist = (h, unit) => h.length ? h.slice(-4).map((e) => `${esc(dshort(e.date))}: ${esc(e.pace || fmt(e.value))}${unit}${e.source ? ` (${esc(e.source)})` : ""}`).join(" · ") : "no history yet";
+    const src = (x) => x && x.length > 48 ? x.slice(0, 47).trimEnd() + "…" : x;
+    const hist = (h, unit) => h.length ? "History: " + h.slice(-3).reverse().map((e) => `${dshort(e.date)} ${e.pace || fmt(e.value)}${unit}${e.source ? ` (${src(e.source)})` : ""}`).join(" · ") : "";
     const thRows = [
       ["Bike FTP", t.ftp.current ? `${fmt(t.ftp.current)} W${t.ftp.wkg ? ` · ${fmt(t.ftp.wkg, 2)} W/kg` : ""}` : "not set", t.ftp.source, hist(t.ftp.history, " W")],
       ["Run threshold pace", t.run.current ? `${t.run.current}/km` : "not set", t.run.source, hist(t.run.history, "/km")],
       ["Swim CSS", t.css.current ? `${t.css.current}/100 m` : "not set", t.css.source, hist(t.css.history, "/100 m")],
       ["LTHR bike / run", `${t.lthr_bike ? fmt(t.lthr_bike) : "–"} / ${t.lthr_run ? fmt(t.lthr_run) : "–"} bpm`, t.lthr_est ? `estimated ${fmt(t.lthr_est)} (89% of max HR)` : "", ""],
       ["Max HR · weight", `${t.max_hr ? fmt(t.max_hr) + " bpm" : "–"} · ${t.weight_kg ? fmt(t.weight_kg, 1) + " kg" : "–"}`, "", ""],
-    ].map(([l, v, s, h]) => `<tr><td>${esc(l)}</td><td><b>${esc(v)}</b>${s ? `<div class="sub">${esc(s)}</div>` : ""}</td><td class="sub">${esc(h)}</td></tr>`).join("");
+    ].map(([l, v, s, h]) => `<tr><td style="white-space:nowrap">${esc(l)}</td><td><b>${esc(v)}</b>${s ? ` <span class="sub">· ${esc(s)}</span>` : ""}${h ? `<div class="sub">${esc(h)}</div>` : ""}</td></tr>`).join("");
     mount("pg-ctl", (c) => xyChart(c, { x: "time", height: 170, aria: "Fitness over the year",
       series: [{ points: f.series.map((r) => [r.date, r.ctl]), color: "var(--series-1)", label: "Fitness (CTL)" }, { points: f.series.map((r) => [r.date, r.atl]), color: "var(--series-2)", label: "Fatigue (ATL)", width: 1.5 }] }));
     const sports = ["swim", "bike", "run", "strength", "other"].filter((s) => p.monthly.some((mo) => mo[s]));
@@ -1633,7 +1649,7 @@ function viewSport(d, sport) {
       segs: [[unit === "km" ? w.km : w.hours, SPORT_COLOR[sport] || "var(--series-1)"]], mark: w.ramp_pct || w.long_share_pct ? "!" : "",
       tip: `<b>Week of ${esc(dshort(w.week_of))}</b><div>${w.sessions || 0} sessions · ${fmt(w.hours, 1)} h${w.km ? ` · ${fmt(w.km, 1)} km` : ""} · ${fmt(w.tss)} TSS</div>${w.longest_km ? `<div>Longest ${fmt(w.longest_km, 1)} km · ${fmt(w.longest_h, 1)} h</div>` : ""}${w.ramp_pct ? `<div>! +${fmt(w.ramp_pct)}% vs the week before</div>` : ""}${w.long_share_pct ? `<div>! long run ${fmt(w.long_share_pct)}% of the week</div>` : ""}` })), { height: 160, yfmt: (v) => `${fmt(v)}${unit}`, aria: `${sport} volume per week` }));
     const zcard = (z, label) => `<div><div class="section-label">${esc(label)}${z.hr_basis ? ` · HR zones on ${esc(z.hr_basis)}` : ""}</div>${threeZone(z.three_zone)}${zoneBars(z.hr)}
-      ${z.power.length ? `<div class="section-label">Power zones</div>${zoneBars(z.power)}` : ""}${!z.hr.length && !z.power.length ? `<div class="empty">No zone data${z.sessions_without ? ` (${z.sessions_without} sessions without HR zones: set LTHR or max HR with the coach)` : ""}.</div>` : ""}</div>`;
+      ${z.power.length ? `<div class="section-label">Power zones</div>${zoneBars(z.power)}` : ""}${!z.hr.length && !z.power.length ? `<div class="empty">${!z.sessions_with_zones && !z.sessions_without ? "No sessions in this period." : `No zone data (${z.sessions_without} sessions without HR zones: set LTHR or max HR with the coach).`}</div>` : ""}</div>`;
     const T = s.trends || {};
     const trends = sport === "bike" ? [trendCard("sp-t1", "Outdoor speed", T.speed_outdoor, { dec: 1, label: "Outdoor ride", note: "km/h, terrain and wind dominate" }),
       trendCard("sp-t2", "Efficiency (NP / HR)", T.ef, { dec: 2, label: "Ride (IF < 0.80)" }), trendCard("sp-t3", "Cadence", T.cadence, { dec: 0, label: "Ride", note: "rpm" })]
@@ -1657,7 +1673,9 @@ function viewSport(d, sport) {
 
 // ---------------------------------------------------------------- Session detail
 function viewSession(d, id) {
-  return lazy(`/api/view/session/${id}`, (x) => {
+  const url = `/api/view/session/${id}`;
+  if (!VIEWS[url]?.data) POST.push(() => { const c = document.querySelector("#app .empty"); if (c && c.textContent === "Loading…") c.textContent = "Loading… reading the FIT file; a long ride takes a few seconds the first time."; });
+  return lazy(url, (x) => {
     const o = x.overview, m = x.metrics || {}, w = x.watch || {}, th = x.thresholds || {}, sp = o.sport;
     const nb = x.neighbours || {};
     const speed = sp === "run" ? (o.pace_km ? [`${o.pace_km}<small>/km</small>`, o.ngp_km && o.ngp_km !== o.pace_km ? `Pace · NGP ${o.ngp_km}` : "Pace"] : null)
@@ -1738,18 +1756,21 @@ function viewRaces(d) {
     const pr = (p) => p ? `${p.tsb > 0 ? "+" : ""}${fmt(p.tsb)}` : "–";
     const card = (e) => {
       const p = e.plan || {}, tp = e.taper || {};
-      const verdictColor = /as targeted/.test(e.form_verdict || "") ? "var(--good)" : /fatigued/.test(e.form_verdict || "") ? "var(--critical)" : "var(--warning)";
+      const verdictColor = /as targeted|fine for/.test(e.form_verdict || "") ? "var(--good)" : /fatigued/.test(e.form_verdict || "") ? "var(--critical)" : "var(--warning)";
+      const target = e.form_target ? `target ${e.form_target[0] > 0 ? "+" : ""}${e.form_target[0]} to +${e.form_target[1]}` : "";
+      const taperText = (e.priority === "A" || tp.block) && has(tp.reduction_pct)
+        ? ` Last 10 days ${fmt(tp.last_10d_tss)} TSS vs ${fmt(tp.prior_10d_tss)} the 10 before (${tp.reduction_pct > 0 ? "−" : "+"}${fmt(Math.abs(tp.reduction_pct))}%; an A-race taper cuts 40–60%).` : "";
       const keys = (p.key_sessions || []).map((k) => `<li><a href="#plan/day/${k.date}">${esc(wday(k.date))} ${esc(dshort(k.date))}</a> ${sportTag(k.sport)}${esc(k.title)}</li>`).join("");
       const coverage = p.covered_until ? (p.covered_until >= e.date ? "The plan runs through race day." : `The plan ends ${dshort(p.covered_until)}: ask the coach to plan up to the race.`) : "No sessions planned toward this race yet.";
       return `<section class="card event-card" id="race-${e.date}"><div class="kicker">${e.priority ? `<span class="pill">${esc(e.priority)} race</span>` : ""}${e.format ? `<span>${esc(e.format)}</span>` : ""}<span>${esc(dlong(e.date))}</span></div>
         <h1 class="headline">${esc(e.name)}</h1>
         <div class="stats" style="margin-top:12px">${statBox(`${e.days_to_go}<small>${e.days_to_go === 1 ? "day" : "days"}</small>`, `to go · ${Math.floor(e.days_to_go / 7)} weeks`)}
-          ${statBox(pr(e.projected), "Projected form (TSB) on the day")}${statBox(fmt(e.projected?.ctl), `Projected fitness (CTL) · now ${fmt(r.ctl_today)}`)}
+          ${statBox(pr(e.projected), `Projected form (TSB) on the day${target ? " · " + target : ""}`)}${statBox(fmt(e.projected?.ctl), `Projected fitness (CTL) · now ${fmt(r.ctl_today)}`)}
           ${statBox(p.sessions ? `${p.sessions}<small>· ${fmt(p.hours, 0)} h</small>` : "0", "Sessions planned until then")}</div>
         ${e.form_verdict ? `<div class="row"><span class="badge"><span class="dot" style="background:${verdictColor}"></span>${esc(e.form_verdict)}</span></div>` : ""}
-        <div class="sub" style="margin-top:6px">${esc(coverage)}${tp.block ? ` Taper: ${esc(tp.block)}.` : ""}${has(tp.reduction_pct) ? ` Last 10 days ${fmt(tp.last_10d_tss)} TSS vs ${fmt(tp.prior_10d_tss)} the 10 before (${tp.reduction_pct > 0 ? "−" : "+"}${fmt(Math.abs(tp.reduction_pct))}%; a taper cuts 40–60%).` : ""}</div>
+        <div class="sub" style="margin-top:6px">${esc(coverage)}${tp.block ? ` Taper: ${esc(tp.block)}.` : ""}${esc(taperText)}</div>
         ${(e.blocks || []).length ? `<div class="muted" style="margin-top:4px">Blocks: ${e.blocks.map((b) => `<a href="#plan/block/${b.id}">${esc(b.name)}</a>${b.phase ? ` (${esc(b.phase)})` : ""}`).join(" → ")}</div>` : ""}
-        ${keys ? `<div class="section-label">Key sessions before it</div><ul class="flags">${keys}</ul>` : ""}
+        ${keys ? `<div class="section-label">Key sessions in the 6 weeks before it</div><ul class="flags">${keys}</ul>` : ""}
         <div class="section-label">Race plan${e.race_plan_updated ? ` · ${esc(dshort(e.race_plan_updated))}` : ""}</div>
         ${e.race_plan ? richText(e.race_plan) : '<div class="empty">No race plan yet. Ask the coach for pacing, fueling and logistics; it saves them here.</div>'}</section>`;
     };

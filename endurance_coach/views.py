@@ -7,7 +7,7 @@ says which direction is an improvement for that measure.
 from __future__ import annotations
 
 import statistics
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from datetime import date, timedelta
 from typing import Any
 
@@ -85,9 +85,11 @@ def _trend(points: list[dict[str, Any]], better: int, end: date | None = None) -
     if len(recent) >= 3 and len(previous) >= 3:
         r, q = statistics.median(recent), statistics.median(previous)
         out |= {"recent": rnd(r, 3), "previous": rnd(q, 3), "change_pct": rnd((r - q) / q * 100, 1) if q else None}
-        if out["change_pct"] is not None:
-            out["verdict"] = ("stable" if abs(out["change_pct"]) < 2 else
-                              "improving" if out["change_pct"] * better > 0 else "declining")
+        change = out["change_pct"]
+        if change is not None:
+            # better=0: a measure with no right direction (bike cadence) only goes up or down.
+            out["verdict"] = ("stable" if abs(change) < 2 else ("up" if change > 0 else "down") if not better else
+                              "improving" if change * better > 0 else "declining")
     return out
 
 
@@ -489,15 +491,27 @@ def _downsample(arr: np.ndarray, step: int, smooth: int = 1) -> list[float | Non
     return out
 
 
+_SESSION_CACHE: OrderedDict[tuple[int, str | None], dict[str, Any]] = OrderedDict()
+_SESSION_CACHE_SIZE = 12
+
+
 def session_detail(activity_id: int) -> dict[str, Any]:
-    """analyze_session plus stream series for charts, numeric zones and neighbours for paging."""
+    """analyze_session plus stream series for charts, numeric zones and neighbours for paging.
+
+    A long ride's FIT takes seconds to parse on the Pi: it is parsed once per request, and the result is kept for
+    the last few sessions until a sync updates the activity.
+    """
     a = store.activity(activity_id)
     if not a:
         return {"error": "Activity not found in the cache."}
-    out = coach.analyze_session(activity_id, remote_laps=False)
+    key = (activity_id, a.get("updated_at"))
+    if key in _SESSION_CACHE:
+        _SESSION_CACHE.move_to_end(key)
+        return _SESSION_CACHE[key]
+    stream = coach.load_stream(activity_id) if a["fit_status"] == "ok" else None
+    out = coach.analyze_session(activity_id, remote_laps=False, stream=stream)
     m = a["metrics"]
     out["zones_s"] = _clean({"hr": m.get("hr_zones_s"), "power": m.get("power_zones_s"), "hr_basis": m.get("hr_zone_basis")})
-    stream = coach.load_stream(activity_id) if a["fit_status"] == "ok" else None
     if stream is not None and stream.seconds > 0:
         step = max(1, int(np.ceil(stream.seconds / _MAX_STREAM_POINTS)))
         series: dict[str, Any] = {"step_s": step, "t_min": [round(i / 60, 2) for i in range(0, stream.seconds, step)]}
@@ -530,6 +544,9 @@ def session_detail(activity_id: int) -> dict[str, Any]:
     out["neighbours"] = _clean({"prev": prev["id"] if prev else None, "next": nxt["id"] if nxt else None,
                                 "same_day": [{"id": x["id"], "sport": x["sport"], "name": x["name"]} for x in same_day if x["id"] != a["id"]]})
     out["date"], out["sport"], out["fit_status"] = a["date"], a["sport"], a["fit_status"]
+    _SESSION_CACHE[key] = out
+    while len(_SESSION_CACHE) > _SESSION_CACHE_SIZE:
+        _SESSION_CACHE.popitem(last=False)
     return out
 
 
@@ -555,10 +572,18 @@ def races(end: date | None = None) -> dict[str, Any]:
             proj = by_date.get(e["date"]) or {}
             rec["projected"] = _clean({k: proj.get(k) for k in ("ctl", "atl", "tsb")})
             tsb = proj.get("tsb")
+            # A races get a full taper, B races a short one; C races are trained through.
+            prio = str(e.get("priority") or "B").upper()
+            lo, hi = {"A": (10, 25), "B": (5, 20)}.get(prio, (-10, 25))
+            rec["form_target"] = [lo, hi]
             if tsb is not None:
-                rec["form_verdict"] = ("fresh, as targeted (+10 to +25)" if 10 <= tsb <= 25 else
-                                       "very fresh: may give away fitness" if tsb > 25 else
-                                       "a bit flat: taper deeper" if 0 <= tsb < 10 else "still fatigued: plan a taper")
+                if prio == "C":
+                    rec["form_verdict"] = ("fine for a C race (trained through)" if lo <= tsb <= hi else
+                                           "very fresh for a C race" if tsb > hi else "still fatigued, even for a C race")
+                else:
+                    rec["form_verdict"] = (f"fresh, as targeted (+{lo} to +{hi})" if lo <= tsb <= hi else
+                                           "very fresh: may give away fitness" if tsb > hi else
+                                           "a bit flat: taper deeper" if 0 <= tsb < lo else "still fatigued: plan a taper")
             ahead = plan.sessions(today, day)
             active = [s for s in ahead if s.get("status") != "skipped" and s.get("type") != "rest"]
             rec["plan"] = _clean({
@@ -566,7 +591,8 @@ def races(end: date | None = None) -> dict[str, Any]:
                 "tss": rnd(sum(plan.estimated_tss(s) or 0 for s in active)),
                 "covered_until": max((s["date"] for s in ahead), default=None),
                 "key_sessions": [_clean({"date": s["date"], "sport": s.get("sport"), "title": s["title"], "type": s.get("type")})
-                                 for s in active if plan.INTENSITY_CLASS.get(s.get("type")) == "hard"][:8],
+                                 for s in active if plan.INTENSITY_CLASS.get(s.get("type")) == "hard"
+                                 and s["date"] >= (day - timedelta(days=42)).isoformat()][-8:],
             })
             taper = [b for b in plan.blocks(day - timedelta(days=21), day) if "taper" in f"{b.get('phase')} {b.get('name')}".lower()]
             last10 = sum(plan.estimated_tss(s) or 0 for s in active if s["date"] > (day - timedelta(days=10)).isoformat())

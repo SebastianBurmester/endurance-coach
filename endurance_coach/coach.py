@@ -385,12 +385,14 @@ def zone_distribution(days: int = 28, sport: str | None = None, end: date | None
 
 # ---------------------------------------------------------------- single session
 
-def analyze_session(activity_id: int | None = None, sport: str | None = None, remote_laps: bool = True) -> dict[str, Any]:
+def analyze_session(activity_id: int | None = None, sport: str | None = None, remote_laps: bool = True,
+                    stream: Stream | None = None) -> dict[str, Any]:
     a = store.activity(activity_id) if activity_id else store.latest_activity(sport)
     if not a:
         return {"error": "Activity not found in cache. Run sync_data first."}
     out: dict[str, Any] = {"overview": overview(a)}
-    stream = load_stream(a["id"]) if a["fit_status"] == "ok" else None
+    if stream is None and a["fit_status"] == "ok":
+        stream = load_stream(a["id"])
     th = thresholds(a["date"], stream)
     out["thresholds"] = th
     if stream:
