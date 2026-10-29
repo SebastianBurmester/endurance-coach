@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 import statistics
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from . import settings, store
@@ -35,6 +36,33 @@ def _bb_at_wake(bb: Any, sleep: Any) -> float | None:
     return float(level) if abs(ts - wake_ms) <= 90 * 60 * 1000 else None
 
 
+def _local_ms(ms: Any) -> str | None:
+    """Garmin's *Local timestamps are local wall time encoded as epoch ms."""
+    value = num(ms)
+    return datetime.fromtimestamp(value / 1000, timezone.utc).strftime("%Y-%m-%dT%H:%M") if value else None
+
+
+def _garmin_sleep_window(sleep: Any) -> tuple[str | None, str | None]:
+    """Sleep start and end as local 'YYYY-MM-DDTHH:MM' (Connect-style local/GMT ms or Health-API seconds + offset)."""
+    start, end = _local_ms(deep_get(sleep, "sleepStartTimestampLocal")), _local_ms(deep_get(sleep, "sleepEndTimestampLocal"))
+    if start and end:
+        return start, end
+    secs, offset = num(deep_get(sleep, "startTimeInSeconds")), num(deep_get(sleep, "startTimeOffsetInSeconds")) or 0
+    duration = num(deep_get(sleep, "durationInSeconds"))
+    if secs and duration:
+        return _local_ms((secs + offset) * 1000), _local_ms((secs + offset + duration) * 1000)
+    gmt_start, gmt_end = num(deep_get(sleep, "sleepStartTimestampGMT")), num(deep_get(sleep, "sleepEndTimestampGMT"))
+    if gmt_start and gmt_end:  # the server's timezone stands in for the athlete's
+        return (datetime.fromtimestamp(gmt_start / 1000).strftime("%Y-%m-%dT%H:%M"),
+                datetime.fromtimestamp(gmt_end / 1000).strftime("%Y-%m-%dT%H:%M"))
+    return None, None
+
+
+def _minutes(value: Any) -> int | None:
+    seconds = num(value)
+    return rnd(seconds / 60) if seconds is not None else None
+
+
 def _garmin_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
     """Raw Garmin payloads (read defensively, field names vary by endpoint) in the shared record fields."""
     hrv, daily, sleep = src.get("hrv"), src.get("daily"), src.get("sleep")
@@ -43,7 +71,12 @@ def _garmin_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
     weight_value = num(deep_get(weight, "weight"))
     if weight_value and weight_value > 500:  # Garmin reports grams
         weight_value /= 1000
-    sleep_s = num(deep_get(sleep, "sleepTimeSeconds", "totalSleepSeconds", "sleepDurationInSeconds"))
+    stages = [num(deep_get(sleep, *keys)) for keys in (("deepSleepSeconds", "deepSleepDurationInSeconds"),
+                                                       ("remSleepSeconds", "remSleepInSeconds"),
+                                                       ("lightSleepSeconds", "lightSleepDurationInSeconds"))]
+    sleep_s = (num(deep_get(sleep, "sleepTimeSeconds", "totalSleepSeconds", "sleepDurationInSeconds"))
+               or (sum(stages) if all(v is not None for v in stages) else None))
+    sleep_start, sleep_end = _garmin_sleep_window(sleep)
     return {
         "hrv": num(deep_get(hrv, "lastNightAvg") or deep_get(sleep, "avgOvernightHrv")),
         "hrv_weekly": num(deep_get(hrv, "weeklyAvg")),
@@ -53,9 +86,16 @@ def _garmin_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
         "rhr": num(deep_get(daily, "heartRate.restingValue", "restingHeartRate", "restingHeartRateValue")
                    or deep_get(sleep, "restingHeartRate")),
         "sleep_h": round(sleep_s / 3600, 2) if sleep_s else None,
-        "sleep_score": num(deep_get(sleep, "sleepScores.overall.value", "overallSleepScore", "sleepScore")),
-        "deep_min": rnd((num(deep_get(sleep, "deepSleepSeconds")) or 0) / 60) or None,
-        "rem_min": rnd((num(deep_get(sleep, "remSleepSeconds")) or 0) / 60) or None,
+        "sleep_score": num(deep_get(sleep, "sleepScores.overall.value", "overallSleepScore.value", "overallSleepScore",
+                                         "sleepScore")),
+        "deep_min": rnd((num(deep_get(sleep, "deepSleepSeconds", "deepSleepDurationInSeconds")) or 0) / 60) or None,
+        "rem_min": rnd((num(deep_get(sleep, "remSleepSeconds", "remSleepInSeconds")) or 0) / 60) or None,
+        "light_min": _minutes(deep_get(sleep, "lightSleepSeconds", "lightSleepDurationInSeconds")),
+        "awake_min": _minutes(deep_get(sleep, "awakeSleepSeconds", "awakeDurationInSeconds")),
+        "awake_count": num(deep_get(sleep, "awakeCount")),
+        "sleep_start": sleep_start,
+        "sleep_end": sleep_end,
+        "sleep_hr_avg": num(deep_get(sleep, "avgHeartRate", "averageHeartRate")),
         "bb_wake": num(deep_get(daily, "bodyBatteryAtWakeTime")) or _bb_at_wake(bb, sleep),
         "bb_high": num(deep_get(daily, "bodyBattery.maxValue", "bodyBatteryHighestValue")),
         "bb_low": num(deep_get(daily, "bodyBattery.minValue", "bodyBatteryLowestValue")),
@@ -71,8 +111,10 @@ def _coros_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
     """Parsed COROS records (see coros_parse.py) in the shared record fields."""
     hrv, rhr, sleep = src.get("hrv") or {}, src.get("rhr") or {}, src.get("sleep") or {}
     daily, load, rec = src.get("daily") or {}, src.get("coros_load") or {}, src.get("recovery") or {}
-    sleep_min = sleep.get("main_sleep_min") or daily.get("sleep_total_min")
-    deep, rem = sleep.get("deep_pct"), sleep.get("rem_pct")
+    # Nights without a main sleep (watch off, naps only) come back with score 0 and the naps as the daily total.
+    sleep_min = sleep.get("main_sleep_min") if sleep else daily.get("sleep_total_min")
+    deep, rem, light = sleep.get("deep_pct"), sleep.get("rem_pct"), sleep.get("light_pct")
+    window = re.findall(r"(\d{4}-\d{2}-\d{2}) (\d{1,2}:\d{2})", sleep.get("window") or "")
     return {
         "hrv": hrv.get("hrv"),
         "hrv_status": hrv.get("evaluation"),
@@ -81,9 +123,16 @@ def _coros_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
         "hrv_baseline": hrv.get("baseline"),
         "rhr": rhr.get("rhr"),
         "sleep_h": round(sleep_min / 60, 2) if sleep_min else None,
-        "sleep_score": sleep.get("sleep_score"),
+        "sleep_score": sleep.get("sleep_score") or None,
         "deep_min": rnd(sleep_min * deep / 100) if sleep_min and deep is not None else None,
         "rem_min": rnd(sleep_min * rem / 100) if sleep_min and rem is not None else None,
+        "light_min": rnd(sleep_min * light / 100) if sleep_min and light is not None else None,
+        "awake_min": sleep.get("awake_min"),
+        "awake_count": sleep.get("awake_count"),
+        "naps_min": sleep.get("naps_min") or None,
+        "sleep_start": f"{window[0][0]}T{window[0][1]:0>5}" if len(window) == 2 else None,
+        "sleep_end": f"{window[1][0]}T{window[1][1]:0>5}" if len(window) == 2 else None,
+        "sleep_hr_avg": daily.get("sleep_hr_avg"),
         "sleep_hr_min": daily.get("sleep_hr_min"),
         "stress_avg": daily.get("stress_avg"),
         "steps": daily.get("steps"),
@@ -99,7 +148,8 @@ def _coros_day(day: str, src: dict[str, Any]) -> dict[str, Any]:
 
 # Every field a day can have, whichever source it came from (absent ones are None).
 _FIELDS = ("hrv", "hrv_weekly", "hrv_status", "hrv_baseline_low", "hrv_baseline_high", "hrv_baseline", "rhr", "sleep_h",
-           "sleep_score", "deep_min", "rem_min", "sleep_hr_min", "stress_avg", "steps", "weight_kg",
+           "sleep_score", "deep_min", "rem_min", "light_min", "awake_min", "awake_count", "naps_min", "sleep_start",
+           "sleep_end", "sleep_hr_avg", "sleep_hr_min", "stress_avg", "steps", "weight_kg",
            "bb_wake", "bb_high", "bb_low", "bb_charged", "recovery_pct", "recovery_level",
            "coros_load_ratio", "coros_load_comment", "coros_short_term", "coros_long_term", "cycle_phase")
 

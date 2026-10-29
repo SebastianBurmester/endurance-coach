@@ -19,6 +19,7 @@ DEFAULT_PROFILE: dict[str, Any] = {
     "lthr_bike": None,
     "lthr_run": None,
     "weekly_hours_available": None,
+    "sleep_need_h": None,          # hours asleep; the sleep analysis assumes 8 without it
     "goals": [],
     "events": [],  # [{"date": "2027-06-20", "name": "Zurich 70.3", "priority": "A", "format": "70.3"}]
     "notes": "",

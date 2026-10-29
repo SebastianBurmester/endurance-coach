@@ -42,6 +42,11 @@
   --critical: #d03b3b;
   --tip-bg: #0b0b0b;
   --tip-ink: #f0efec;
+  /* Sleep stages: one blue ramp by depth (deep darkest), awake in the warm series colour. */
+  --stage-deep: #104281;
+  --stage-rem: #2a78d6;
+  --stage-light: #86b6ef;
+  --stage-awake: #eb6834;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -68,6 +73,10 @@
     --good-text: #0ca30c;
     --tip-bg: #f0efec;
     --tip-ink: #0b0b0b;
+    --stage-deep: #86b6ef;
+    --stage-rem: #3987e5;
+    --stage-light: #184f95;
+    --stage-awake: #d95926;
   }
 }
 :root[data-theme="dark"] {
@@ -77,6 +86,7 @@
   --series-1: #3987e5; --series-2: #d95926; --band: rgba(57,135,229,0.16);
   --int-easy: #184f95; --int-moderate: #3987e5; --int-hard: #86b6ef;
   --good-text: #0ca30c; --tip-bg: #f0efec; --tip-ink: #0b0b0b;
+  --stage-deep: #86b6ef; --stage-rem: #3987e5; --stage-light: #184f95; --stage-awake: #d95926;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -279,6 +289,20 @@ a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
 .steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-2); }
 .steps li { margin: 3px 0; }
 .msg { margin-top: 8px; font-size: 14px; }
+
+/* sleep */
+.finding { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; padding: 9px 0; border-bottom: 1px solid var(--grid); }
+.finding:last-child { border-bottom: 0; }
+.finding .ic { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 700 12px/1 var(--body); color: #fff; margin-top: 1px; }
+.finding b { font: 600 17px/1.25 var(--display); }
+.finding p { grid-column: 2; margin: 2px 0 0; font-size: 14px; color: var(--ink-2); }
+.influence { padding: 12px 0; border-bottom: 1px solid var(--grid); }
+.influence:last-child { border-bottom: 0; }
+.influence h3 { margin: 0 0 4px; font: 600 17px/1.25 var(--display); display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; align-items: baseline; }
+.influence p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
+.influence table { margin-top: 6px; }
+td.better { color: var(--good-text); }
+td.worse { color: var(--critical); }
 </style>
 </head>
 <body>
@@ -293,7 +317,7 @@ a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
 <div class="tooltip" id="tip"></div>
 <script>
 "use strict";
-const TABS = () => [["today", "Today"], ["plan", "Plan"], ["health", "Health"], ["load", "Load"],
+const TABS = () => [["today", "Today"], ["plan", "Plan"], ["health", "Health"], ["sleep", "Sleep"], ["load", "Load"],
   ["sessions", cycling() ? "Rides" : "Sessions"], ["settings", "Settings"]];
 const cycling = () => DATA?.app?.focus === "road_cycling";
 const watch = () => DATA?.app?.provider_label || "Watch";
@@ -936,6 +960,220 @@ function viewHealth(d) {
     <div class="grid two">${cards}</div>`;
 }
 
+// ---------------------------------------------------------------- Sleep
+const STAGES = [["deep_min", "Deep", "var(--stage-deep)"], ["rem_min", "REM", "var(--stage-rem)"], ["light_min", "Light", "var(--stage-light)"], ["awake_min", "Awake", "var(--stage-awake)"]];
+const has = (v) => v !== null && v !== undefined;
+const clockOf = (m) => { if (!has(m)) return "–"; const v = ((Math.round(m) % 1440) + 1440) % 1440; return `${pad(Math.floor(v / 60))}:${pad(v % 60)}`; };
+const isLate = (n) => has(n.last_end_h) && n.last_end_h < 3;
+const nightTip = (n) => `<div><b>Night of ${esc(wday(n.night_of))} ${esc(dshort(n.night_of))}</b></div>
+  ${has(n.bed_min) ? `<div>${esc(n.bed)} – ${esc(n.wake)} · ${esc(hm(n.asleep_min) || "–")} asleep</div>` : `<div>${esc(hm(n.asleep_min) || "–")} asleep</div>`}
+  <div>Score ${fmt(n.score)}${has(n.efficiency) ? ` · efficiency ${fmt(n.efficiency)}%` : ""}</div>
+  ${n.train_min >= 15 ? `<div>Day: ${fmt(n.tss)} TSS${n.last_session ? ` · last ${esc(n.last_session)}${has(n.last_end_h) ? `, ${fmt(n.last_end_h, 1)} h before bed` : ""}` : ""}</div>` : "<div>Rest day</div>"}
+  ${n.evening_mobility ? `<div>${esc(n.evening_mobility)}</div>` : ""}`;
+
+/* Bed-to-wake bar per night (time runs downward), usual bed and wake as dashed lines, and a marker row for
+   late sessions (dot) and evening yoga / mobility (ring). */
+function rhythmChart(container, nights, rh) {
+  container.innerHTML = "";
+  const timed = nights.filter((n) => has(n.bed_min));
+  if (timed.length < 3) { container.innerHTML = '<div class="empty">No bed and wake times yet.</div>'; return; }
+  const days = []; for (let k = timed[0].date; k <= nights[nights.length - 1].date; k = addDays(k, 1)) days.push(k);
+  const byDate = new Map(nights.map((n) => [n.date, n]));
+  const W = container.clientWidth || 600, H = 240, m = { l: 40, r: 8, t: 8, b: 36 }, n = days.length, plotB = H - m.b;
+  const lo = Math.floor((Math.min(...timed.map((x) => x.bed_min)) - 20) / 60) * 60, hi = Math.ceil((Math.max(...timed.map((x) => x.wake_min)) + 20) / 60) * 60;
+  const band = (W - m.l - m.r) / n, bw = Math.max(2, Math.min(10, band * 0.62));
+  const y = (v) => m.t + ((v - lo) / (hi - lo)) * (plotB - m.t), cx = (i) => m.l + band * (i + 0.5);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Bedtime and wake time per night" }, container);
+  const step = hi - lo > 720 ? 180 : 120;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); t.textContent = clockOf(v);
+  }
+  let lastMonth = null;
+  days.forEach((k, i) => {
+    if (k.slice(0, 7) !== lastMonth && i > 2 && i < n - 3) {
+      const t = el("text", { x: cx(i), y: H - 2, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11 }, svg);
+      t.textContent = pd(k).toLocaleDateString(undefined, { month: "short" });
+    }
+    lastMonth = k.slice(0, 7);
+  });
+  days.forEach((k, i) => {
+    const x = byDate.get(k);
+    if (!x) return;
+    if (has(x.bed_min)) el("rect", { x: cx(i) - bw / 2, width: bw, y: y(x.bed_min), height: Math.max(1, y(x.wake_min) - y(x.bed_min)), rx: Math.min(4, bw / 2), fill: "var(--series-1)" }, svg);
+    if (isLate(x)) el("circle", { cx: cx(i), cy: plotB + 12, r: 4, fill: "var(--series-2)" }, svg);
+    if (x.evening_mobility) el("circle", { cx: cx(i), cy: plotB + 12, r: isLate(x) ? 6.5 : 4, fill: "none", stroke: "var(--ink-2)", "stroke-width": 1.5 }, svg);
+  });
+  for (const [v, label, below] of [[rh.bed_median_min, `usual bed ${rh.bed_median}`, false], [rh.wake_median_min, `usual wake ${rh.wake_median}`, true]]) {
+    if (!has(v)) continue;
+    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: "var(--ink-2)", "stroke-width": 1, "stroke-dasharray": "4 4" }, svg);
+    const t = el("text", { x: W - m.r - 2, y: y(v) + (below ? 14 : -5), "text-anchor": "end", fill: "var(--ink-2)", "font-size": 11, "paint-order": "stroke", stroke: "var(--surface)", "stroke-width": 3 }, svg);
+    t.textContent = label;
+  }
+  days.forEach((k, i) => {
+    const x = byDate.get(k);
+    if (!x) return;
+    const hit = el("rect", { x: m.l + band * i, y: 0, width: band, height: H, fill: "transparent" }, svg);
+    const show = () => { const box = svg.getBoundingClientRect(); showTip(nightTip(x), box.left + window.scrollX + (cx(i) / W) * box.width, box.top + window.scrollY + (y(has(x.bed_min) ? x.bed_min : lo) / H) * box.height); };
+    hit.addEventListener("mousemove", show); hit.addEventListener("touchstart", show, { passive: true });
+    hit.addEventListener("mouseleave", hideTip); hit.addEventListener("touchend", () => setTimeout(hideTip, 1500));
+  });
+}
+
+/* Stacked minutes per night: deep at the base, then REM, light and awake, with a surface gap between segments. */
+function stageBars(container, nights) {
+  container.innerHTML = "";
+  const tot = (x) => STAGES.reduce((a, [k]) => a + (x[k] || 0), 0);
+  const list = nights.filter((x) => tot(x) > 0);
+  if (!list.length) { container.innerHTML = '<div class="empty">No sleep stages yet.</div>'; return; }
+  const days = []; for (let k = list[0].date; k <= nights[nights.length - 1].date; k = addDays(k, 1)) days.push(k);
+  const byDate = new Map(list.map((x) => [x.date, x]));
+  const W = container.clientWidth || 600, H = 180, m = { l: 34, r: 8, t: 8, b: 22 }, n = days.length;
+  const hi = Math.ceil(Math.max(...list.map(tot)) / 120) * 120;
+  const band = (W - m.l - m.r) / n, bw = Math.max(3, Math.min(18, band * 0.68));
+  const y = (v) => m.t + (1 - v / hi) * (H - m.t - m.b), cx = (i) => m.l + band * (i + 0.5);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Sleep stages per night" }, container);
+  for (let v = 0; v <= hi; v += 120) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v ? "var(--grid)" : "var(--axis)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); t.textContent = `${v / 60}h`;
+  }
+  // Date labels: the last night always, others only where they don't crowd a neighbour.
+  const placed = [n - 1];
+  days.forEach((k, i) => { if (placed.every((j) => Math.abs(cx(i) - cx(j)) >= 56)) placed.push(i); });
+  for (const i of placed) { const t = el("text", { x: cx(i), y: H - 4, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11 }, svg); t.textContent = dshort(days[i]); }
+  days.forEach((k, i) => {
+    const x = byDate.get(k);
+    if (!x) return;
+    let base = 0;
+    for (const [key, , color] of STAGES) {
+      const v = x[key] || 0;
+      if (!v) continue;
+      el("rect", { x: cx(i) - bw / 2, width: bw, y: y(base + v), height: Math.max(0.5, y(base) - y(base + v)), rx: 1.5, fill: color, stroke: "var(--surface)", "stroke-width": 1 }, svg);
+      base += v;
+    }
+    const hit = el("rect", { x: m.l + band * i, y: 0, width: band, height: H, fill: "transparent" }, svg);
+    const show = () => {
+      const box = svg.getBoundingClientRect();
+      showTip(`<div><b>Night of ${esc(wday(x.night_of))} ${esc(dshort(x.night_of))}</b> · score ${fmt(x.score)}</div>${STAGES.map(([kk, label, color]) => `<div><span class="k" style="background:${color}"></span>${label}: <b>${esc(hm(x[kk]) || "–")}</b></div>`).join("")}`,
+        box.left + window.scrollX + (cx(i) / W) * box.width, box.top + window.scrollY + (y(tot(x)) / H) * box.height);
+    };
+    hit.addEventListener("mousemove", show); hit.addEventListener("touchstart", show, { passive: true });
+    hit.addEventListener("mouseleave", hideTip); hit.addEventListener("touchend", () => setTimeout(hideTip, 1500));
+  });
+}
+const STAGE_LEGEND = `<div class="legend">${STAGES.map(([, label, color]) => `<span class="key"><span class="sw" style="background:${color}"></span>${label}</span>`).join("")}</div>`;
+
+const FINDING = { improve: ["!", "var(--warning)", "var(--marker-ink)", "To improve"], good: ["✓", "var(--good)", "#fff", "Works"], info: ["i", "var(--muted)", "#fff", "Note"] };
+function findingRow(f) {
+  const [ic, bg, ink, label] = FINDING[f.level] || FINDING.info;
+  return `<div class="finding"><span class="ic" style="background:${bg};color:${ink}" role="img" aria-label="${label}">${ic}</span><b>${esc(f.title)}</b><p>${esc(f.text)}</p></div>`;
+}
+
+const SLEEP_QUALITY = ["score", "asleep_min", "efficiency", "deep_min", "rem_min", "awake_min"];
+const VERDICT = { clear: "clear", possible: "possible", none: "no difference", too_few: "too few nights", no_data: "–" };
+function diffText(r) {
+  if (!has(r.diff)) return "–";
+  if (r.metric === "bed_min") return `${fmt(Math.abs(r.diff))} min ${r.diff > 0 ? "later" : "earlier"}`;
+  return `${r.diff > 0 ? "+" : "−"}${fmt(Math.abs(r.diff), Math.abs(r.diff) < 10 && r.unit !== "min" ? 1 : 0)}${r.unit === "%" ? " pts" : r.unit ? " " + r.unit : ""}`;
+}
+const metricVal = (r, v) => !has(v) ? "–" : r.metric === "bed_min" ? clockOf(v) : r.metric === "asleep_min" ? hm(v) : `${fmt(v)}${r.unit === "%" ? "%" : ""}`;
+
+function influenceBlock(inf) {
+  const rows = inf.metrics.filter((r) => r.verdict !== "no_data");
+  const sig = rows.filter((r) => (r.verdict === "clear" || r.verdict === "possible") && r.metric !== "bed_min");
+  // Worse / better sleep is judged on the night itself; sleep HR, HRV and resting HR alone are recovery markers.
+  const quality = sig.filter((r) => SLEEP_QUALITY.includes(r.metric));
+  const worse = quality.filter((r) => r.effect === "worse").length, better = quality.filter((r) => r.effect === "better").length;
+  const [label, color, icon] = inf.n < 4 || inf.n_rest < 4 ? ["Too few nights", "var(--muted)", "?"]
+    : !sig.length ? ["No effect seen", "var(--muted)", "="] : !quality.length ? ["Only HR / HRV moved", "var(--muted)", "~"]
+    : worse > better ? ["Worse sleep", "var(--critical)", "▼"] : better > worse ? ["Better sleep", "var(--good)", "▲"] : ["Mixed", "var(--warning)", "◐"];
+  const ctx = [inf.tss_median && (inf.tss_median[0] || inf.tss_median[1]) ? `median day TSS ${fmt(inf.tss_median[0])} vs ${fmt(inf.tss_median[1])}` : "",
+    inf.bed_min_median ? `median bedtime ${clockOf(inf.bed_min_median[0])} vs ${clockOf(inf.bed_min_median[1])}` : ""].filter(Boolean).join(" · ");
+  const table = rows.length && inf.n ? `<details><summary>Numbers: ${esc(inf.group)} (${inf.n}) vs ${esc(inf.rest)} (${inf.n_rest})</summary><div class="scroll"><table><thead><tr><th>Metric</th><th class="num">${esc(inf.group)}</th><th class="num">${esc(inf.rest)}</th><th class="num">Difference</th><th>Verdict</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="num">${esc(metricVal(r, r.mean))}</td><td class="num">${esc(metricVal(r, r.mean_rest))}</td>
+      <td class="num ${r.effect || ""}">${esc(diffText(r))}</td><td>${esc(VERDICT[r.verdict] || "")}${r.effect ? ` · ${r.effect}` : ""}</td></tr>`).join("")}</tbody></table></div></details>` : "";
+  return `<div class="influence"><h3>${esc(inf.question)}<span class="badge"><span class="dot" style="background:${color}"></span>${icon} ${esc(label)}</span></h3>
+    <p>${esc(inf.summary)}</p>${ctx ? `<p class="muted">${esc(ctx)}</p>` : ""}${inf.note ? `<p class="muted">${esc(inf.note)}</p>` : ""}${table}</div>`;
+}
+
+const sleepStat = (v, label) => `<div><div class="value">${v}</div><div class="label">${esc(label)}</div></div>`;
+
+function lastNightCard(s) {
+  const n = s.last_night, p = s.periods["30d"];
+  const staged = STAGES.reduce((a, [k]) => a + (n[k] || 0), 0);
+  const split = staged ? `<div class="split" role="img" aria-label="Sleep stages last night">${STAGES.filter(([k]) => n[k]).map(([k, , c]) => `<span style="--c:${c};flex:${n[k]}"></span>`).join("")}</div>
+    <div class="legend">${STAGES.map(([k, label, c]) => `<span class="key"><span class="sw" style="background:${c}"></span>${label} ${esc(hm(n[k]) || "–")}</span>`).join("")}</div>` : "";
+  const day = n.train_min >= 15 ? `${fmt(n.tss)} TSS · ${hm(n.train_min)} of training${n.last_session ? ` · last: ${n.last_session}${has(n.last_end_h) ? `, ${fmt(n.last_end_h, 1)} h before bed` : ""}` : ""}` : "Rest day";
+  return `<section class="card"><div class="kicker">Last night · ${esc(wday(n.night_of))} ${esc(dshort(n.night_of))} → ${esc(wday(n.date))}${n.date !== todayKey() ? ` · latest synced` : ""}</div>
+    <h1 class="headline">${has(n.bed_min) ? `${esc(n.bed)} – ${esc(n.wake)}` : esc(hm(n.asleep_min) || "No times")}</h1>
+    <div class="stats" style="margin-top:12px">
+      ${sleepStat(fmt(n.score), `Score · 30-day ${fmt(p.score)}`)}
+      ${sleepStat(esc(hm(n.asleep_min) || "–"), `Asleep · need ${fmt(s.need_h, 1)} h`)}
+      ${sleepStat(has(n.efficiency) ? `${fmt(n.efficiency)}<small>%</small>` : "–", `Efficiency · 30-day ${fmt(p.efficiency)}%`)}
+      ${sleepStat(has(n.sleep_hr) ? `${fmt(n.sleep_hr)}<small>bpm</small>` : "–", `Sleep HR · 30-day ${fmt(p.sleep_hr)}`)}
+      ${sleepStat(has(n.hrv) ? `${fmt(n.hrv)}<small>ms</small>` : "–", `HRV · 30-day ${fmt(p.hrv)}`)}</div>
+    ${split}
+    <div class="sub" style="margin-top:6px">Day before: ${esc(day)}${n.evening_mobility ? ` · ${esc(n.evening_mobility)}` : ""}${has(n.awake_count) ? ` · woke ${fmt(n.awake_count)}× (>5 min)` : ""}</div></section>`;
+}
+
+function sleepSummaryCard(s) {
+  const p = s.periods["30d"], rh = s.rhythm, b = s.score_bands, total = Object.values(b).reduce((a, v) => a + v, 0);
+  return `<section class="card"><h2>Last 30 days <span class="muted">${p.nights} nights</span></h2>
+    <div class="stats">
+      ${sleepStat(`${fmt(p.asleep_h, 1)}<small>h</small>`, `Avg asleep · ${fmt(p.nights_need_pct)}% of nights reach your ${fmt(s.need_h, 1)} h`)}
+      ${sleepStat(fmt(p.score), `Avg score${has(s.trend.score_diff) ? ` · ${s.trend.score_diff > 0 ? "▲" : "▼"} ${fmt(Math.abs(s.trend.score_diff))} vs 30 days before` : ""}`)}
+      ${sleepStat(has(s.debt_14d_h) ? `${fmt(s.debt_14d_h, 1)}<small>h</small>` : "–", "Sleep debt · last 14 nights")}
+      ${sleepStat(has(rh.mid_sd_min) ? `±${fmt(rh.mid_sd_min)}<small>min</small>` : "–", `Rhythm${rh.rating ? ": " + rh.rating : ""} (midpoint spread)`)}
+      ${sleepStat(esc(s.target_bedtime || "–"), `Lights out for ${fmt(s.need_h, 1)} h by your ${s.target_wake || "usual"} wake-up`)}</div>
+    <div class="muted">Score bands, ${total} nights: ${Object.entries(b).map(([k, v]) => `${esc(k)} ${v} (${total ? Math.round((v / total) * 100) : 0}%)`).join(" · ")}</div>
+    <div class="muted">Deep ${fmt(p.deep_pct)}% · REM ${fmt(p.rem_pct)}% of sleep · ~${fmt(p.awake_min)} min awake per night · avg ${esc(p.bed || "–")} – ${esc(p.wake || "–")}</div></section>`;
+}
+
+function viewSleep(d) {
+  const s = d.sleep;
+  if (!s || !s.nights || !s.nights.length) return `${sourceBanner(d)}<section class="card"><h2>Sleep</h2><div class="empty">No sleep data yet. It shows up after the first sync with nights recorded on the watch.</div></section>`;
+  const rh = s.rhythm, ns = s.nights;
+  mount("sl-rhythm", (c) => rhythmChart(c, ns.slice(-60), rh));
+  mount("sl-stages", (c) => stageBars(c, ns.filter((n) => n.date > addDays(todayKey(), -31))));
+  mount("sl-score", (c) => lineChart(c, { rows: d.health, height: 140, endLabels: true, aria: "Sleep score, last 90 days", band: [80, 100], series: [{ key: "sleep_score", label: "Sleep score", color: "var(--series-1)" }] }));
+  mount("sl-hours", (c) => lineChart(c, { rows: d.health, height: 140, endLabels: true, decimals: 1, aria: "Hours asleep, last 90 days", band: [s.need_h, s.need_h + 1], series: [{ key: "sleep_h", label: "Asleep (h)", color: "var(--series-1)" }] }));
+  const rhythmStats = [[esc(rh.bed_median || "–"), "Usual bedtime", `±${fmt(rh.bed_sd_min)} min`], [esc(rh.wake_median || "–"), "Usual wake-up", `±${fmt(rh.wake_sd_min)} min`],
+    [esc(rh.mid_median || "–"), "Sleep midpoint", `±${fmt(rh.mid_sd_min)} min · last 14 nights ±${fmt(rh.mid_sd_14d_min)}`],
+    [has(rh.night_to_night_shift_min) ? `${fmt(rh.night_to_night_shift_min)}<small>min</small>` : "–", "Shift night to night", "average change of the midpoint"],
+    [has(rh.social_jetlag_min) ? `${rh.social_jetlag_min > 0 ? "+" : ""}${fmt(rh.social_jetlag_min)}<small>min</small>` : "–", "Weekend shift", "Fri/Sat nights vs Sun–Thu"],
+    [has(rh.bed_within_30_pct) ? `${fmt(rh.bed_within_30_pct)}<small>%</small>` : "–", "Bedtime within 30 min", `of usual · wake-up ${fmt(rh.wake_within_30_pct)}%`]];
+  const metric = (k, v) => !has(v) ? "–" : k === "asleep_min" ? hm(v) : fmt(v);
+  const bins = s.load_bins.map((b) => `<tr><td>${esc(b.label)}</td><td class="num">${b.n}</td>${["score", "asleep_min", "deep_min", "awake_min", "sleep_hr", "hrv"].map((k) => `<td class="num">${esc(metric(k, b[k]))}</td>`).join("")}</tr>`).join("");
+  const corr = s.correlations.map((c) => `<tr><td>${esc(c.label)}</td><td class="num">${c.n}</td><td class="num">${c.rho > 0 ? "+" : ""}${fmt(c.rho, 2)}</td><td>${esc(c.strength)}${c.clear ? " · clear" : ""}</td></tr>`).join("");
+  const wk = s.weekdays.map((w) => `<tr><td>${esc(w.night)}</td><td class="num">${w.n}</td><td class="num">${fmt(w.asleep_h, 1)} h</td><td class="num">${fmt(w.score)}</td><td class="num">${esc(w.bed || "–")}</td><td class="num">${esc(w.wake || "–")}</td><td class="num">${fmt(w.tss)}</td></tr>`).join("");
+  const cyc = s.cycle.length ? `<section class="card"><h2>Cycle phase <span class="muted">from ${esc(watch())} cycle tracking · context, not a rule</span></h2><div class="scroll"><table><thead><tr><th>Phase</th><th class="num">Nights</th><th class="num">Asleep</th><th class="num">Score</th><th class="num">Awake min</th><th class="num">Sleep HR</th><th class="num">HRV</th></tr></thead><tbody>
+    ${s.cycle.map((c) => `<tr><td>${esc(c.phase)}</td><td class="num">${c.n}</td><td class="num">${fmt(c.asleep_h, 1)} h</td><td class="num">${fmt(c.score)}</td><td class="num">${fmt(c.awake_min)}</td><td class="num">${fmt(c.sleep_hr)}</td><td class="num">${fmt(c.hrv)}</td></tr>`).join("")}</tbody></table></div></section>` : "";
+  const all = [...ns].reverse().slice(0, 60).map((n) => `<tr><td style="white-space:nowrap">${esc(wday(n.night_of))} ${esc(dshort(n.night_of))}</td><td class="num">${esc(n.bed || "–")}</td><td class="num">${esc(n.wake || "–")}</td>
+    <td class="num">${esc(hm(n.asleep_min) || "–")}</td><td class="num">${fmt(n.score)}</td><td class="num">${has(n.efficiency) ? fmt(n.efficiency) + "%" : "–"}</td><td class="num">${esc(hm(n.deep_min) || "–")}</td><td class="num">${esc(hm(n.rem_min) || "–")}</td>
+    <td class="num">${fmt(n.awake_min)}</td><td class="num">${fmt(n.sleep_hr)}</td><td class="num">${fmt(n.hrv)}</td>
+    <td>${n.train_min >= 15 ? `${fmt(n.tss)} TSS${n.last_session ? ` · ${esc(n.last_session)}` : ""}` : "rest"}${n.evening_mobility ? ` · ${esc(n.evening_mobility)}` : ""}</td></tr>`).join("");
+  return `${sourceBanner(d)}<div class="grid two">${lastNightCard(s)}${sleepSummaryCard(s)}</div>
+    <section class="card"><h2>What to improve <span class="muted">from ${s.window.nights} nights, ${esc(dshort(s.window.start))} – ${esc(dshort(s.window.end))}</span></h2>
+      ${s.findings.length ? s.findings.map(findingRow).join("") : '<div class="empty">Nothing stands out yet.</div>'}
+      <div class="muted" style="margin-top:8px">Sleep need: ${esc(s.need_source)}. Tell the coach how many hours you feel best on to change it.</div></section>
+    <section class="card"><h2>Sleep rhythm <span class="muted">last 60 nights · time runs down</span></h2>
+      <div class="stats">${rhythmStats.map(([v, l, sub]) => `<div><div class="value">${v}</div><div class="label">${esc(l)}<br>${esc(sub)}</div></div>`).join("")}</div>
+      <div class="legend"><span class="key"><span class="sw" style="background:var(--series-1)"></span>Asleep (bed to wake)</span><span class="key"><span class="dash"></span>Usual bed / wake</span>
+        <span class="key"><span class="sw" style="background:var(--series-2);border-radius:50%"></span>Session ended &lt; 3 h before bed</span><span class="key"><span class="sw outline" style="border-radius:50%;background:none"></span>Evening yoga / mobility</span></div>
+      <div class="chart" id="sl-rhythm"></div></section>
+    <div class="grid two"><section class="card"><h2>Sleep score<span class="muted">7-day ${fmt(s.periods["7d"].score)} · 30-day ${fmt(s.periods["30d"].score)}</span></h2><div class="chart" id="sl-score"></div><div class="muted">shaded: good and excellent (80+)</div></section>
+      <section class="card"><h2>Time asleep (h)<span class="muted">7-day ${fmt(s.periods["7d"].asleep_h, 1)} · 30-day ${fmt(s.periods["30d"].asleep_h, 1)}</span></h2><div class="chart" id="sl-hours"></div><div class="muted">shaded: your need of ${fmt(s.need_h, 1)} h up to an hour more</div></section></div>
+    <section class="card"><h2>Sleep stages <span class="muted">last 30 nights</span></h2>${STAGE_LEGEND}<div class="chart" id="sl-stages"></div></section>
+    <section class="card"><h2>What affects your sleep <span class="muted">the night after each kind of day vs the other nights</span></h2>
+      ${s.influences.map(influenceBlock).join("")}
+      <div class="muted" style="margin-top:8px">Clear = a difference this size is unlikely to be chance (|t| ≥ 2.5); possible = a hint worth watching. These are associations: hard days, late sessions and late nights often come together.</div></section>
+    <div class="grid two"><section class="card"><h2>Training load and sleep <span class="muted">by the day's TSS</span></h2><div class="scroll"><table><thead><tr><th>Day before</th><th class="num">Nights</th><th class="num">Score</th><th class="num">Asleep</th><th class="num">Deep min</th><th class="num">Awake min</th><th class="num">Sleep HR</th><th class="num">HRV</th></tr></thead><tbody>${bins}</tbody></table></div></section>
+      <section class="card"><h2>Weekday pattern <span class="muted">by the night's evening</span></h2><div class="scroll"><table><thead><tr><th>Night</th><th class="num">n</th><th class="num">Asleep</th><th class="num">Score</th><th class="num">Bed</th><th class="num">Wake</th><th class="num">Day TSS</th></tr></thead><tbody>${wk}</tbody></table></div></section></div>
+    <section class="card"><h2>Relationships <span class="muted">Spearman ρ: +1 rise together, −1 opposite, 0 none</span></h2><div class="scroll"><table><thead><tr><th>Relationship</th><th class="num">Nights</th><th class="num">ρ</th><th>Strength</th></tr></thead><tbody>${corr}</tbody></table></div></section>
+    ${cyc}
+    <section class="card"><details><summary>All nights (last 60)</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Night of</th><th class="num">Bed</th><th class="num">Wake</th><th class="num">Asleep</th><th class="num">Score</th><th class="num">Eff.</th><th class="num">Deep</th><th class="num">REM</th><th class="num">Awake</th><th class="num">HR</th><th class="num">HRV</th><th>Day before</th></tr></thead><tbody>${all}</tbody></table></div></details></section>`;
+}
+
 // ---------------------------------------------------------------- Load
 function viewLoad(d) {
   const tk = todayKey(), t = loadToday(d);
@@ -1146,7 +1384,7 @@ function render() {
   if (tab === "plan" && parts[1] === "block") html = viewBlock(d, parts[2]);
   else if (tab === "plan" && parts[1] === "week") html = viewWeek(d, parts[2]);
   else if (tab === "plan" && parts[1] === "day") html = viewDay(d, parts[2]);
-  else html = { today: viewToday, plan: viewPlan, health: viewHealth, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
+  else html = { today: viewToday, plan: viewPlan, health: viewHealth, sleep: viewSleep, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
   document.getElementById("app").innerHTML = html;
   POST.forEach((f) => f());
   if (tab === "settings") renderSettings();

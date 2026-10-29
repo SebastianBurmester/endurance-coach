@@ -9,7 +9,8 @@ dashboard's **Settings** tab.
 pace (NGP), sTSS vs CSS, hrTSS from the HR stream vs per-sport LTHR, Pw:HR and Pa:HR decoupling, HR and power zones,
 laps, a combined Performance Management Chart (CTL / ATL / TSB / ramp / ACWR) with weekly volume per sport, and
 morning readiness from HRV (vs the watch's normal range and 7/60-day baselines), resting HR, sleep, stress and the
-watch's recovery gauge (Garmin Body Battery or COROS recovery). Plans, plan-vs-actual and a load projection are
+watch's recovery gauge (Garmin Body Battery or COROS recovery), and a sleep analysis (rhythm and regularity, sleep
+debt, stages, and how training load, late sessions, evening yoga, stress and bedtime relate to the night after). Plans, plan-vs-actual and a load projection are
 stored locally and shown on the dashboard.
 
 ## One checkout per athlete

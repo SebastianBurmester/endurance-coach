@@ -46,6 +46,7 @@ after the athlete agrees to the number.
 | Power profile, FTP / CP estimates | `power_curve` |
 | Intensity distribution | `zone_distribution` |
 | HRV / RHR / sleep / stress / recovery gauge / weight trends | `health_trends` |
+| Sleep in depth: rhythm, debt, what training / late sessions / evening yoga do to it | `sleep_analysis` |
 | Week review incl. plan vs actual | `week_summary` |
 | Read the plan (+ compliance, projected CTL/TSB) | `get_plan` |
 | Write / change the plan | `save_plan`, `adjust_planned_session`, `clear_plan` |

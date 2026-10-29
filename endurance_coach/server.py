@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from . import athlete, coach, dashboard, plan, settings, sync
+from . import athlete, coach, dashboard, plan, settings, sleep, sync
 from .util import to_date
 
 logging.basicConfig(level=logging.WARNING)
@@ -125,6 +125,19 @@ def health_trends(days: int = 28) -> dict[str, Any]:
 
 
 @mcp.tool()
+def sleep_analysis(days: int = 180, include_nights: bool = False) -> dict[str, Any]:
+    """Sleep in depth (nights dated by wake-up day): last night, 7/30-day and window averages vs the athlete's sleep
+    need, sleep debt, a target bedtime, rhythm and regularity (bed / wake / midpoint spread, social jet lag), weekday
+    pattern, score bands, and what the day before does to the night: training vs rest days, the hardest days, sessions
+    ending < 3 h before bed (also hard ones), evening yoga / mobility, high-stress days, late bedtimes, weekends and
+    (COROS) cycle phase. Each comparison gives per-metric differences with a verdict (clear / possible / none /
+    too_few); correlations are Spearman. `findings` are the ready-made improve / good / info points.
+    include_nights adds every night's record (bed, wake, stages, HR, HRV, the day's TSS and evening sessions)."""
+    warning = _prefetch()
+    return _wrap(sleep.analysis(days, include_nights=include_nights), warning)
+
+
+@mcp.tool()
 def week_summary(weeks_ago: int = 0) -> dict[str, Any]:
     """One training week (Mon-Sun): every session, totals per sport, HR / power zones, health averages, load at
     week end and plan vs actual. weeks_ago=0 is the current week, 1 the previous one."""
@@ -162,6 +175,7 @@ def update_athlete_profile(
     lthr_run: float | None = None,
     max_hr: float | None = None,
     weekly_hours_available: float | None = None,
+    sleep_need_h: float | None = None,
     name: str | None = None,
     add_goal: str | None = None,
     add_event_name: str | None = None,
@@ -172,6 +186,7 @@ def update_athlete_profile(
 ) -> dict[str, Any]:
     """Update athlete.json. Thresholds are appended to their history (dated threshold_date, default today):
     ftp in W, run_threshold_pace as 'm:ss' per km, css_pace as 'm:ss' per 100 m. TSS is recomputed afterwards.
+    sleep_need_h (hours asleep the athlete feels best on; default 8) sets the target in sleep_analysis.
     Event priority is A/B/C; format e.g. gran fondo / road race / sprint / olympic / 70.3 / ironman. Only confirm
     values with the athlete."""
     profile = athlete.load()
@@ -182,7 +197,7 @@ def update_athlete_profile(
             athlete.add_threshold(profile, key, float(value), threshold_date, threshold_source)
             changed_thresholds = True
     for key, value in (("weight_kg", weight_kg), ("lthr_bike", lthr_bike), ("lthr_run", lthr_run), ("max_hr", max_hr),
-                       ("weekly_hours_available", weekly_hours_available), ("name", name), ("notes", notes)):
+                       ("weekly_hours_available", weekly_hours_available), ("sleep_need_h", sleep_need_h), ("name", name), ("notes", notes)):
         if value is not None:
             profile[key] = value
     if add_goal:
