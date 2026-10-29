@@ -209,6 +209,9 @@ def sync_health(days_back: int | None = None) -> dict[str, Any]:
                     store.put_daily(conn, "recovery", today.isoformat(), value | {"at": time.strftime("%H:%M")})
             else:
                 store.set_meta(name, json.dumps(value))
+            if name == "coros_fitness" and value:  # also per day, so VO2max and predictions get a history
+                with store.connect() as conn:
+                    store.put_daily(conn, "coros_fitness", today.isoformat(), value)
         except coros.CorosAuthError:
             raise
         except Exception as exc:  # noqa: BLE001

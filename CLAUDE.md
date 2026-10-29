@@ -47,6 +47,10 @@ after the athlete agrees to the number.
 | Intensity distribution | `zone_distribution` |
 | HRV / RHR / sleep / stress / recovery gauge / weight trends | `health_trends` |
 | Sleep in depth: rhythm, debt, what training / late sessions / evening yoga do to it | `sleep_analysis` |
+| Getting fitter? Thresholds, CTL, efficiency / pace / power trends | `progress_trends` |
+| Readiness history, strain episodes, how fast big days are absorbed | `recovery_history` |
+| One sport: volume, run ramp, zones, trends, sessions | `sport_overview` |
+| Events: projected race-day form, taper, key sessions left; save the race plan / result | `race_overview`, `save_race_plan` |
 | Week review incl. plan vs actual | `week_summary` |
 | Read the plan (+ compliance, projected CTL/TSB) | `get_plan` |
 | Write / change the plan | `save_plan`, `adjust_planned_session`, `clear_plan` |
@@ -66,6 +70,8 @@ Sessions don't remember each other. The saved plan (`get_plan`) and `athlete.jso
 - The athlete's dashboard page (served from the Pi over Tailscale) shows the saved plan, health and load live.
   The only thing on it you write directly is the coach note: update it with `set_coach_note` after every
   check-in, review or plan change.
+- Race plans (pacing per discipline, fueling, transitions, logistics) belong to the event: save them with
+  `save_race_plan`, and the result after the race. The dashboard's Races tab shows them.
 - `/training-plan` builds a block, `/checkin` adapts today, `/session-review` judges execution, and `/week-review`
   checks compliance and details next week.
 

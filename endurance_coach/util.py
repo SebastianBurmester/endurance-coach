@@ -90,6 +90,22 @@ def rnd(value: Any, digits: int = 0) -> Any:
     return int(r) if digits == 0 else r
 
 
+_JS_MAX_INT = 2**53
+
+
+def js_safe(obj: Any) -> Any:
+    """Integers JavaScript can't hold exactly (COROS activity ids) as strings, for JSON sent to the browser."""
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, int):
+        return str(obj) if abs(obj) > _JS_MAX_INT else obj
+    if isinstance(obj, dict):
+        return {k: js_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [js_safe(v) for v in obj]
+    return obj
+
+
 def hms(seconds: float | None) -> str | None:
     if seconds is None:
         return None

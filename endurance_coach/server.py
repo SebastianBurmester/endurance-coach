@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from . import athlete, coach, dashboard, plan, settings, sleep, sync
+from . import athlete, coach, dashboard, plan, settings, sleep, sync, views
 from .util import to_date
 
 logging.basicConfig(level=logging.WARNING)
@@ -135,6 +135,54 @@ def sleep_analysis(days: int = 180, include_nights: bool = False) -> dict[str, A
     include_nights adds every night's record (bed, wake, stages, HR, HRV, the day's TSS and evening sessions)."""
     warning = _prefetch()
     return _wrap(sleep.analysis(days, include_nights=include_nights), warning)
+
+
+@mcp.tool()
+def progress_trends() -> dict[str, Any]:
+    """Is the athlete getting fitter (last 365 days): threshold histories (FTP, run threshold, CSS) and what is in
+    effect, CTL now vs 6 weeks ago and the year's peak, monthly hours per sport, monthly best power (5 s / 1 / 5 /
+    20 min), power curve with FTP / CP estimates, and trends with a 6-vs-6-week verdict: endurance-ride efficiency
+    (NP/HR), easy-run efficiency, HR drift on long runs, run cadence, VO2max, pool pace. `highlights` are ready-made."""
+    warning = _prefetch()
+    return _wrap(views.progress(), warning)
+
+
+@mcp.tool()
+def recovery_history(days: int = 120) -> dict[str, Any]:
+    """Recovery over time: readiness status per day (green / amber / red with flags), HRV vs its 60-day range,
+    resting HR delta, sleep and TSS per day; strain episodes (2+ days of red or HRV / RHR flags) with the load
+    before them; the bounce-back curve after the biggest days (HRV %, RHR, sleep score vs the 30 days before,
+    mornings 1-4); weekly averages and status counts."""
+    warning = _prefetch()
+    return _wrap(views.recovery(days), warning)
+
+
+@mcp.tool()
+def sport_overview(sport: str = "run") -> dict[str, Any]:
+    """One sport (swim, bike, run, strength): volume for 7 / 28 / 84 / 365 days, 26 weeks of volume with run ramp
+    (+10%) and long-run share (30%) checks, HR / power zones for 4 and 12 weeks, sport-specific trends (bike speed,
+    efficiency, cadence and power curve; run pace, efficiency, cadence, long run; swim pace and distance),
+    indoor / outdoor or pool / open-water split, and the last 12 weeks of sessions. `flags` are ready-made."""
+    warning = _prefetch()
+    return _wrap(views.sport_view(sport), warning)
+
+
+@mcp.tool()
+def race_overview() -> dict[str, Any]:
+    """Every event in the profile: days to go, projected CTL / ATL / TSB on race day from the saved plan with a
+    verdict against the +10 to +25 target, sessions and key sessions left, taper (block and TSS drop in the last 10
+    days), the saved race plan and result; past events with what was recorded that day."""
+    warning = _prefetch()
+    return _wrap(views.races(), warning)
+
+
+@mcp.tool()
+def save_race_plan(event_date: str, race_plan: str | None = None, result: str | None = None,
+                   event_name: str | None = None) -> dict[str, Any]:
+    """Save the race plan for an event (shown on the dashboard's Races tab): pacing per discipline, fueling and
+    fluids per hour, transitions, warm-up, logistics, written like a workout (markdown table, lists, 'Label: text').
+    After the race, save `result` (times, splits, how it went). event_name picks between events on the same date."""
+    return views.save_race_plan(event_date, race_plan, result, event_name)
 
 
 @mcp.tool()

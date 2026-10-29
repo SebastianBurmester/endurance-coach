@@ -47,6 +47,11 @@
   --stage-rem: #2a78d6;
   --stage-light: #86b6ef;
   --stage-awake: #eb6834;
+  /* Categorical slots in fixed order (validated): sports use them as swim, bike, run, strength. */
+  --cat-1: #2a78d6;
+  --cat-2: #eb6834;
+  --cat-3: #1baf7a;
+  --cat-4: #eda100;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -77,6 +82,10 @@
     --stage-rem: #3987e5;
     --stage-light: #184f95;
     --stage-awake: #d95926;
+    --cat-1: #3987e5;
+    --cat-2: #d95926;
+    --cat-3: #199e70;
+    --cat-4: #c98500;
   }
 }
 :root[data-theme="dark"] {
@@ -87,6 +96,7 @@
   --int-easy: #184f95; --int-moderate: #3987e5; --int-hard: #86b6ef;
   --good-text: #0ca30c; --tip-bg: #f0efec; --tip-ink: #0b0b0b;
   --stage-deep: #86b6ef; --stage-rem: #3987e5; --stage-light: #184f95; --stage-awake: #d95926;
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -301,6 +311,28 @@ a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
 .influence h3 { margin: 0 0 4px; font: 600 17px/1.25 var(--display); display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; align-items: baseline; }
 .influence p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
 .influence table { margin-top: 6px; }
+/* zones, calendar, races */
+.zbars { display: grid; gap: 5px; }
+.zrow { display: grid; grid-template-columns: minmax(80px, 150px) minmax(0, 1fr) 104px; gap: 8px; align-items: center; font-size: 13px; }
+.zrow .zt { height: 10px; background: var(--grid); border-radius: 5px; overflow: hidden; }
+.zrow .zt span { display: block; height: 100%; background: var(--series-1); border-radius: 5px; }
+.zrow .zv { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.cal { display: grid; grid-template-columns: 44px repeat(7, minmax(0, 1fr)); gap: 3px; font-size: 11px; }
+.cal .h { color: var(--muted); text-align: center; }
+.cal .cw { color: var(--muted); align-self: center; white-space: nowrap; }
+.cal .c { height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font: 700 12px/1 var(--body); color: #fff; background: var(--surface-2); }
+.cal .c.green { background: var(--good); }
+.cal .c.amber { background: var(--warning); color: var(--marker-ink); }
+.cal .c.red { background: var(--critical); }
+.cal .c.none { color: var(--muted); font-weight: 400; }
+.cal .c.out { background: transparent; }
+.cal .c.today { box-shadow: 0 0 0 2px var(--ink); }
+.seg a { display: inline-block; font: 600 16px/1.2 var(--display); padding: 9px 16px; color: var(--ink-2); background: var(--surface); }
+.seg a[aria-current="page"] { background: var(--series-1); color: #fff; }
+.seg a:hover { text-decoration: none; }
+.event-card { border-left: 4px solid var(--col-yellow); }
+.event-card.past { border-left-color: var(--grid); }
+.chart-label { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 10px 0 2px; }
 td.better { color: var(--good-text); }
 td.worse { color: var(--critical); }
 </style>
@@ -317,8 +349,9 @@ td.worse { color: var(--critical); }
 <div class="tooltip" id="tip"></div>
 <script>
 "use strict";
-const TABS = () => [["today", "Today"], ["plan", "Plan"], ["health", "Health"], ["sleep", "Sleep"], ["load", "Load"],
-  ["sessions", cycling() ? "Rides" : "Sessions"], ["settings", "Settings"]];
+const TABS = () => [["today", "Today"], ["plan", "Plan"], ["races", "Races"], ["sessions", cycling() ? "Rides" : "Sessions"],
+  ["sports", cycling() ? "Bike" : "Sports"], ["progress", "Progress"], ["load", "Load"], ["recovery", "Recovery"], ["health", "Health"],
+  ["sleep", "Sleep"], ["settings", "Settings"]];
 const cycling = () => DATA?.app?.focus === "road_cycling";
 const watch = () => DATA?.app?.provider_label || "Watch";
 const SPORT = { swim: "Swim", bike: "Bike", run: "Run", brick: "Brick", strength: "Strength", mobility: "Mobility", multisport: "Multisport", rest: "Rest", other: "Other" };
@@ -901,7 +934,7 @@ function actualCard(x) {
   const ss = activeSessions(x);
   const pMin = ss.reduce((a, s) => a + (s.duration_min || 0), 0), pTss = ss.reduce((a, s) => a + (sessTss(s) || 0), 0);
   const aMin = x.actual.reduce((a, r) => a + (r.minutes || 0), 0), aTss = x.actual.reduce((a, r) => a + (r.tss || 0), 0);
-  const rides = x.actual.map((a) => `<div class="ride"><div class="row"><b>${sportTag(a.sport)}${esc(a.name)}</b></div>
+  const rides = x.actual.map((a) => `<div class="ride"><div class="row"><b>${sportTag(a.sport)}<a href="#session/${a.id}">${esc(a.name)}</a></b></div>
     <div class="sub">${esc([a.type, hm(a.minutes), a.km ? `${fmt(a.km, a.sport === "swim" ? 2 : 1)} km` : "", a.tss ? `TSS ${fmt(a.tss)}` : "", a.if ? `IF ${fmt(a.if, 2)}` : "", a.avg_hr ? `HR ${fmt(a.avg_hr)}` : ""].filter(Boolean).join(" · "))}</div></div>`).join("");
   return `<section class="card"><h2>What you did ${x.status ? badge(x.status) : ""}</h2>
     ${ss.length ? meter("Duration (min)", Math.round(aMin), Math.round(pMin), "") + meter("TSS", Math.round(aTss), Math.round(pTss), "") : ""}${rides}</section>`;
@@ -1213,8 +1246,8 @@ function viewLoad(d) {
 }
 
 // ---------------------------------------------------------------- Sessions
-const activityLink = (a, text) => DATA.app.provider === "garmin"
-  ? `<a href="https://connect.garmin.com/modern/activity/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" style="color:var(--ink)">${text}</a>` : text;
+const activityLink = (a, text) => `<a href="#session/${a.id}">${text}</a>` + (DATA.app.provider === "garmin"
+  ? ` <a href="https://connect.garmin.com/modern/activity/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" class="muted" title="Open in Garmin Connect">↗</a>` : "");
 
 function viewRides(d) {
   const rides = d.recent_sessions.filter((a) => a.sport === "bike");
@@ -1234,7 +1267,7 @@ function viewRides(d) {
       <td class="num">${fmt(a.avg_hr)}</td><td class="num">${fmt(a.ef, 2)}</td><td class="num">${a.decoupling_pct === undefined ? "–" : fmt(a.decoupling_pct, 1) + "%"}</td></tr>`;
   }).join("");
   return `<section class="card"><h2>Rides</h2><div class="stats">${stat(s7, "Last 7 days")}${stat(s42, "Last 6 weeks")}</div>${otherLine}</section>
-    <section class="card"><h2>Last 6 weeks <span class="muted">date opens the plan day${d.app.provider === "garmin" ? " · name opens Garmin Connect" : ""}</span></h2><div class="scroll"><table><thead><tr>
+    <section class="card"><h2>Last 6 weeks <span class="muted">date opens the plan day · name opens the ride${d.app.provider === "garmin" ? " · ↗ Garmin Connect" : ""}</span></h2><div class="scroll"><table><thead><tr>
       <th>Date</th><th>Ride</th><th class="num">Time</th><th class="num">km</th><th class="num">Elev m</th><th class="num">Avg W</th><th class="num">NP</th><th class="num">IF</th><th class="num">TSS</th><th class="num">HR</th><th class="num">EF</th><th class="num">Decoupl.</th>
     </tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
@@ -1261,6 +1294,475 @@ function viewSessions(d) {
     <section class="card"><h2>Last 6 weeks <span class="muted">date opens the plan day · TSS source: power, pace, swim_pace, hr${d.app.provider === "coros" ? " or coros (COROS load, rates hard sessions high)" : " or garmin"}</span></h2><div class="scroll"><table><thead><tr>
       <th>Date</th><th>Session</th><th class="num">Time</th><th class="num">km</th><th class="num">Pace / speed</th><th class="num">TSS</th><th class="num">IF</th><th class="num">HR</th><th class="num">Decoupl.</th><th class="num">${esc(watch())} load</th>
     </tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+// ---------------------------------------------------------------- views loaded on demand
+// Progress, recovery, sports, sessions and races come from /api/view/*: fetched when the tab opens, kept until the
+// next refresh marks them stale, then re-fetched in the background while the old data stays on screen.
+let VIEWS = {};
+const LOADING = '<section class="card"><div class="empty">Loading…</div></section>';
+function lazy(url, fn) {
+  let v = VIEWS[url];
+  if (!v || (v.stale && !v.pending)) {
+    v = VIEWS[url] = { ...(v || {}), pending: true, stale: false };
+    fetch(url, { cache: "no-store" })
+      .then(async (res) => { const j = await res.json(); if (!res.ok || j.error) throw new Error(j.error || res.status); VIEWS[url] = { data: j }; })
+      .catch((e) => { VIEWS[url] = { ...VIEWS[url], pending: false, error: e.message }; })
+      .then(() => { if (DATA) render(); });
+  }
+  if (v.data) return fn(v.data);
+  if (v.error) return `<section class="card"><div class="empty err">Could not load this view: ${esc(v.error)}</div></section>`;
+  return LOADING;
+}
+
+const SPORT_COLOR = { swim: "var(--cat-1)", bike: "var(--cat-2)", run: "var(--cat-3)", strength: "var(--cat-4)", other: "var(--muted)" };
+const sportLegend = (sports) => `<div class="legend">${sports.map((s) => `<span class="key"><span class="sw" style="background:${SPORT_COLOR[s]}"></span>${esc(SPORT[s] || s)}</span>`).join("")}</div>`;
+const sessionHref = (id) => `#session/${id}`;
+const paceFmt = (v) => pace(v);
+const VERDICT_BADGE = {
+  improving: ["Improving", "var(--good)", "▲"], declining: ["Slipping", "var(--critical)", "▼"], stable: ["Stable", "var(--muted)", "="],
+};
+const levelIcon = { good: ["✓", "var(--good)", "#fff"], warn: ["!", "var(--warning)", "var(--marker-ink)"], info: ["i", "var(--muted)", "#fff"] };
+const noteRow = (level, text, title) => { const [ic, bg, ink] = levelIcon[level] || levelIcon.info;
+  return `<div class="finding"><span class="ic" style="background:${bg};color:${ink}" role="img" aria-label="${level}">${ic}</span>${title ? `<b>${esc(title)}</b><p>${esc(text)}</p>` : `<span>${esc(text)}</span>`}</div>`; };
+const statBox = (v, label) => `<div><div class="value">${v}</div><div class="label">${esc(label)}</div></div>`;
+
+/* Generic x/y chart: time ("time", ISO dates), log or linear x; line, dot and bar series; reference lines; one
+   tooltip for the nearest point of every series. o: { series:[{points:[[x,y,extra]], color, label, kind, dash}],
+   x, height, xmin, xmax, xticks, xfmt, yfmt, invert, zero, band, refs:[{y,label}], aria, onClick, empty } */
+function xyChart(container, o) {
+  container.innerHTML = "";
+  const kx = (v) => o.x === "time" ? pd(v).getTime() : o.x === "log" ? Math.log(v) : v;
+  const ser = o.series.map((s) => ({ ...s, pts: s.points.map((p) => [has(p[0]) ? kx(p[0]) : null, p[1], p]) }));
+  const all = ser.flatMap((s) => s.pts.filter((p) => has(p[0]) && has(p[1])));
+  if (!all.length) { container.innerHTML = `<div class="empty">${esc(o.empty || "No data yet.")}</div>`; return; }
+  const W = container.clientWidth || 600, H = o.height || 170, m = { l: o.ml || 40, r: 10, t: 10, b: 22 };
+  let xlo = has(o.xmin) ? kx(o.xmin) : Math.min(...all.map((p) => p[0])), xhi = has(o.xmax) ? kx(o.xmax) : Math.max(...all.map((p) => p[0]));
+  if (xhi === xlo) { const pad0 = o.x === "time" ? 3 * DAY_MS : 1; xlo -= pad0; xhi += pad0; }
+  const yv = all.map((p) => p[1]).concat(o.band || [], (o.refs || []).map((r) => r.y));
+  let lo = Math.min(...yv, o.zero ? 0 : Infinity), hi = Math.max(...yv);
+  const span = hi - lo || Math.abs(hi) * 0.1 || 1;
+  if (!o.zero) lo -= span * 0.08;
+  hi += span * 0.08;
+  const ticks = niceTicks(lo, hi, 4);
+  const plotW = W - m.l - m.r, plotH = H - m.t - m.b;
+  const X = (x) => m.l + ((x - xlo) / (xhi - xlo)) * plotW;
+  const Y = (v) => m.t + (o.invert ? (v - lo) / (hi - lo) : 1 - (v - lo) / (hi - lo)) * plotH;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": o.aria || "" }, container);
+  if (o.band) el("rect", { x: m.l, width: plotW, y: Math.min(Y(o.band[0]), Y(o.band[1])), height: Math.abs(Y(o.band[0]) - Y(o.band[1])), fill: "var(--band)" }, svg);
+  for (const t of ticks) {
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), stroke: t === 0 && o.zero ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    const tx = el("text", { x: m.l - 6, y: Y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); tx.textContent = (o.yfmt || fmt)(t);
+  }
+  // x labels
+  const labels = [];
+  if (o.x === "time") {
+    const days = (xhi - xlo) / DAY_MS;
+    for (let t = xlo; t <= xhi; t += DAY_MS) {
+      const dt = new Date(t), key = iso(dt);
+      if (days > 75 ? dt.getDate() === 1 : dt.getDay() === 1) labels.push([t, days > 75 ? dt.toLocaleDateString(undefined, { month: "short" }) : dshort(key)]);
+    }
+  } else if (o.x === "log") (o.xticks || []).forEach(([v, l]) => labels.push([Math.log(v), l]));
+  else niceTicks(xlo, xhi, 6).forEach((v) => labels.push([v, (o.xfmt || fmt)(v)]));
+  let lastX = -Infinity;
+  for (const [v, l] of labels) {
+    if (v < xlo || v > xhi || X(v) - lastX < 44) continue;
+    const t = el("text", { x: X(v), y: H - 4, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11 }, svg); t.textContent = l; lastX = X(v);
+  }
+  for (const r of o.refs || []) {
+    el("line", { x1: m.l, x2: W - m.r, y1: Y(r.y), y2: Y(r.y), stroke: "var(--ink-2)", "stroke-width": 1, "stroke-dasharray": "4 4" }, svg);
+    if (r.label) { const t = el("text", { x: W - m.r - 2, y: Y(r.y) - 4, "text-anchor": "end", fill: "var(--ink-2)", "font-size": 11, "paint-order": "stroke", stroke: "var(--surface)", "stroke-width": 3 }, svg); t.textContent = r.label; }
+  }
+  for (const s of ser) {
+    if (s.kind === "bar") {
+      const bw = Math.max(1.5, Math.min(14, (o.x === "time" ? plotW / ((xhi - xlo) / DAY_MS + 1) : plotW / s.pts.length) * 0.7));
+      const base = Y(Math.max(lo, 0));
+      s.pts.forEach(([x, v]) => { if (has(x) && v) el("rect", { x: X(x) - bw / 2, width: bw, y: Math.min(base, Y(v)), height: Math.abs(base - Y(v)), rx: Math.min(2, bw / 2), fill: s.color }, svg); });
+    } else if (s.kind === "dots") {
+      s.pts.forEach(([x, v]) => { if (has(x) && has(v)) el("circle", { cx: X(x), cy: Y(v), r: 3.5, fill: s.color, opacity: 0.75, stroke: "var(--surface)", "stroke-width": 1 }, svg); });
+    } else {
+      let dpath = "", pen = false;
+      s.pts.forEach(([x, v]) => { if (!has(x) || !has(v)) { pen = false; return; } dpath += (pen ? "L" : "M") + X(x).toFixed(1) + "," + Y(v).toFixed(1); pen = true; });
+      if (dpath) el("path", { d: dpath, fill: "none", stroke: s.color, "stroke-width": s.width || 2, "stroke-linejoin": "round", "stroke-linecap": "round", "stroke-dasharray": s.dash ? "5 4" : "none" }, svg);
+      if (s.marks) s.pts.forEach(([x, v]) => { if (has(x) && has(v)) el("circle", { cx: X(x), cy: Y(v), r: 4, fill: s.color, stroke: "var(--surface)", "stroke-width": 2 }, svg); });
+    }
+  }
+  // hover: nearest point per series
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--ink-2)", "stroke-width": 1, opacity: 0 }, svg);
+  const hot = ser.map((s) => el("circle", { r: 4.5, fill: s.color, stroke: "var(--surface)", "stroke-width": 2, opacity: 0 }, svg));
+  const hit = el("rect", { x: m.l, y: 0, width: plotW, height: H, fill: "transparent", style: o.onClick ? "cursor:pointer" : "" }, svg);
+  let picked = null;
+  const move = (ev) => {
+    const box = svg.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - box.left) * (W / box.width);
+    const rows = [];
+    picked = null;
+    let anchor = null;
+    ser.forEach((s, k) => {
+      let best = null;
+      for (const p of s.pts) if (has(p[0]) && has(p[1]) && (!best || Math.abs(X(p[0]) - px) < Math.abs(X(best[0]) - px))) best = p;
+      if (!best || Math.abs(X(best[0]) - px) > (s.kind === "line" || !s.kind ? 40 : 18)) { hot[k].setAttribute("opacity", 0); return; }
+      hot[k].setAttribute("cx", X(best[0])); hot[k].setAttribute("cy", Y(best[1])); hot[k].setAttribute("opacity", s.kind === "bar" ? 0 : 1);
+      rows.push([s, best]);
+      if (!anchor || Math.abs(X(best[0]) - px) < Math.abs(X(anchor[0]) - px)) anchor = best;
+      if (best[2] && best[2][2] && best[2][2].id) picked = best[2][2];
+    });
+    if (!anchor) { cross.setAttribute("opacity", 0); hideTip(); return; }
+    cross.setAttribute("x1", X(anchor[0])); cross.setAttribute("x2", X(anchor[0])); cross.setAttribute("opacity", 1);
+    const head = o.tipTitle ? o.tipTitle(anchor[2]) : o.x === "time" ? dshort(anchor[2][0]) : o.x === "log" ? "" : (o.xfmt || fmt)(anchor[2][0]);
+    const body = rows.map(([s, p]) => `<div><span class="k" style="background:${s.color}"></span>${esc(s.label || "")}${s.label ? ": " : ""}<b>${esc((s.tfmt || o.yfmt || fmt)(p[1]))}</b>${p[2][2] && p[2][2].name ? ` · ${esc(p[2][2].name)}` : ""}</div>`).join("");
+    showTip(`${head ? `<div><b>${esc(head)}</b></div>` : ""}${body}${picked && o.onClick ? '<div class="muted">click to open</div>' : ""}`,
+      box.left + window.scrollX + (X(anchor[0]) / W) * box.width, box.top + window.scrollY + (Math.min(...rows.map(([, p]) => Y(p[1]))) / H) * box.height);
+  };
+  const leave = () => { cross.setAttribute("opacity", 0); hot.forEach((h) => h.setAttribute("opacity", 0)); hideTip(); };
+  hit.addEventListener("mousemove", move); hit.addEventListener("touchstart", move, { passive: true }); hit.addEventListener("touchmove", move, { passive: true });
+  hit.addEventListener("mouseleave", leave); hit.addEventListener("touchend", () => setTimeout(leave, 1500));
+  if (o.onClick) hit.addEventListener("click", () => { if (picked) { hideTip(); o.onClick(picked); } });
+}
+
+/* Stacked bars per period (weeks or months). items: [{ key, label, segs:[[value, color, name]], tip, href, current, mark }] */
+function stackBars(container, items, o = {}) {
+  container.innerHTML = "";
+  const n = items.length;
+  if (!n || !items.some((it) => it.segs.some(([v]) => v))) { container.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+  const W = container.clientWidth || 600, H = o.height || 160, m = { l: 36, r: 8, t: 14, b: 22 };
+  const tot = (it) => it.segs.reduce((a, [v]) => a + (v || 0), 0);
+  const ticks = niceTicks(0, Math.max(...items.map(tot)) * 1.05 || 1), hi = ticks[ticks.length - 1] || 1;
+  const band = (W - m.l - m.r) / n, bw = Math.max(4, Math.min(28, band * 0.66));
+  const y = (v) => m.t + (1 - v / hi) * (H - m.t - m.b), cx = (i) => m.l + band * (i + 0.5);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": o.aria || "" }, container);
+  for (const t of ticks) {
+    el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    const tx = el("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11 }, svg); tx.textContent = (o.yfmt || fmt)(t);
+  }
+  const cur = items.findIndex((it) => it.current), placed = cur >= 0 ? [cur] : [];
+  items.forEach((it, i) => { if (placed.every((j) => Math.abs(cx(i) - cx(j)) >= 52)) placed.push(i); });
+  for (const i of placed) { const t = el("text", { x: cx(i), y: H - 4, "text-anchor": "middle", fill: i === cur ? "var(--ink)" : "var(--muted)", "font-size": 11, "font-weight": i === cur ? 600 : 400 }, svg); t.textContent = items[i].label; }
+  items.forEach((it, i) => {
+    let base = 0;
+    it.segs.forEach(([v, color]) => {
+      if (!v) return;
+      el("rect", { x: cx(i) - bw / 2, width: bw, y: y(base + v), height: Math.max(0.5, y(base) - y(base + v)), rx: 2, fill: color, stroke: "var(--surface)", "stroke-width": 1 }, svg);
+      base += v;
+    });
+    if (it.mark) { const t = el("text", { x: cx(i), y: y(base) - 3, "text-anchor": "middle", fill: "var(--ink)", "font-size": 12, "font-weight": 700 }, svg); t.textContent = it.mark; }
+    const hit = el("rect", { x: m.l + band * i, y: 0, width: band, height: H, fill: "transparent", style: it.href ? "cursor:pointer" : "" }, svg);
+    const show = () => { const box = svg.getBoundingClientRect(); showTip(it.tip, box.left + window.scrollX + (cx(i) / W) * box.width, box.top + window.scrollY + (y(base) / H) * box.height); };
+    hit.addEventListener("mousemove", show); hit.addEventListener("touchstart", show, { passive: true });
+    hit.addEventListener("mouseleave", hideTip); hit.addEventListener("touchend", () => setTimeout(hideTip, 1500));
+    if (it.href) hit.addEventListener("click", () => { hideTip(); location.hash = it.href; });
+  });
+}
+
+const zoneBars = (rows) => rows.length ? `<div class="zbars">${rows.map((r) => `<div class="zrow"><span>${esc(r.zone)}</span><span class="zt"><span style="width:${Math.min(100, r.pct || 0)}%"></span></span><span class="zv">${fmt(r.pct)}% · ${esc(hm((r.h || 0) * 60) || "0min")}</span></div>`).join("")}</div>` : "";
+function threeZone(z) {
+  if (!z) return "";
+  const parts = [["low_pct", "Easy (Z1–Z2)", "easy"], ["mid_pct", "Moderate (Z3–Z4)", "moderate"], ["high_pct", "Hard (Z5)", "hard"]];
+  return `<div class="split" role="img" aria-label="Time by intensity">${parts.filter(([k]) => z[k]).map(([k, , c]) => `<span style="--c:var(--int-${c});flex:${z[k]}"></span>`).join("")}</div>
+    <div class="int-legend">${parts.map(([k, label, c]) => `<span style="--c:var(--int-${c})">${label} ${fmt(z[k])}%</span>`).join("")}</div>`;
+}
+
+/* A trend from views._trend: dots per session, the 28-day median as a line, and a 6-vs-6-week verdict. */
+function trendCard(id, title, t, o = {}) {
+  if (!t || !t.n) return "";
+  const v = VERDICT_BADGE[t.verdict];
+  const f = o.yfmt || ((x) => fmt(x, o.dec ?? 1));
+  mount(id, (c) => xyChart(c, { x: "time", height: o.height || 150, invert: o.invert, refs: o.refs, yfmt: f, aria: title, onClick: (p) => { location.hash = sessionHref(p.id); },
+    series: [{ points: t.points.map((p) => [p.date, p.value, p]), color: "var(--series-1)", kind: "dots", label: o.label || "Session" },
+      { points: t.points.map((p) => [p.date, p.avg]), color: "var(--ink-2)", label: "28-day median", width: 1.5 }] }));
+  const change = has(t.change_pct) ? `6 weeks ${esc(f(t.recent))} vs ${esc(f(t.previous))} before (${t.change_pct > 0 ? "+" : ""}${fmt(t.change_pct, 1)}%)` : `${t.n} sessions`;
+  return `<section class="card"><h2>${esc(title)}${v ? `<span class="badge"><span class="dot" style="background:${v[1]}"></span>${v[2]} ${v[0]}</span>` : ""}</h2>
+    <div class="muted">${change}${o.note ? ` · ${esc(o.note)}` : ""}</div><div class="chart" id="${id}"></div>
+    <div class="legend"><span class="key"><span class="sw" style="background:var(--series-1);border-radius:50%"></span>${esc(o.label || "Session")}</span><span class="key"><span class="line" style="background:var(--ink-2)"></span>28-day median</span></div></section>`;
+}
+
+const DUR_TICKS = [[5, "5s"], [60, "1m"], [300, "5m"], [1200, "20m"], [3600, "1h"], [7200, "2h"]];
+function powerCurveCard(pc, id) {
+  if (!pc || !pc.rows.length) return "";
+  const e = pc.estimates || {}, cp = e.critical_power;
+  mount(id, (c) => xyChart(c, { x: "log", xticks: DUR_TICKS, height: 200, yfmt: (v) => fmt(v), aria: "Power curve", refs: pc.ftp ? [{ y: pc.ftp, label: `FTP ${fmt(pc.ftp)} W` }] : [],
+    tipTitle: (p) => p[2] ? p[2].label : "", onClick: (p) => { location.hash = sessionHref(p.id); },
+    series: [{ points: pc.rows.map((r) => [r.s, r.w_90d, { ...r, id: r.id_90d, name: r.date_90d ? dshort(r.date_90d) : "" }]), color: "var(--series-1)", label: "Last 90 days", marks: true, tfmt: (v) => `${fmt(v)} W` },
+      { points: pc.rows.map((r) => [r.s, r.w_365d, { ...r }]), color: "var(--muted)", label: "Best in 365 days", dash: true, tfmt: (v) => `${fmt(v)} W` }] }));
+  const rows = pc.rows.filter((r) => [5, 60, 300, 1200, 3600].includes(r.s)).map((r) => `<tr><td>${esc(r.label)}</td><td class="num">${fmt(r.w_90d)}</td><td class="num">${has(r.wkg_90d) ? fmt(r.wkg_90d, 2) : "–"}</td><td class="num">${fmt(r.w_365d)}</td><td class="num">${r.date_90d ? `<a href="${sessionHref(r.id_90d)}">${esc(dshort(r.date_90d))}</a>` : "–"}</td></tr>`).join("");
+  return `<section class="card"><h2>Power curve <span class="muted">best average power per duration</span></h2>
+    <div class="stats">${statBox(pc.ftp ? `${fmt(pc.ftp)}<small>W</small>` : "–", `FTP in use${pc.ftp_source ? " · " + pc.ftp_source : ""}`)}
+      ${statBox(cp ? `${fmt(cp.cp_w)}<small>W</small>` : "–", `Critical power${cp ? ` · W′ ${fmt(cp.w_prime_kj, 1)} kJ` : ""}`)}
+      ${statBox(has(e.ftp_from_20min) ? `${fmt(e.ftp_from_20min)}<small>W</small>` : "–", "95% of 20-min best")}
+      ${statBox(has(e.best_60min) ? `${fmt(e.best_60min)}<small>W</small>` : "–", "60-min best")}</div>
+    <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Last 90 days</span><span class="key"><span class="dash"></span>Best in 365 days</span></div>
+    <div class="chart" id="${id}"></div>
+    <div class="scroll"><table><thead><tr><th>Duration</th><th class="num">90 days W</th><th class="num">W/kg</th><th class="num">365 days W</th><th class="num">Set on</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="muted">Estimates are only as good as the hard efforts in the window. Confirm a new FTP with a test before the coach changes it.</div></section>`;
+}
+
+// ---------------------------------------------------------------- Progress
+function viewProgress() {
+  return lazy("/api/view/progress", (p) => {
+    const t = p.thresholds, f = p.fitness;
+    const hist = (h, unit) => h.length ? h.slice(-4).map((e) => `${esc(dshort(e.date))}: ${esc(e.pace || fmt(e.value))}${unit}${e.source ? ` (${esc(e.source)})` : ""}`).join(" · ") : "no history yet";
+    const thRows = [
+      ["Bike FTP", t.ftp.current ? `${fmt(t.ftp.current)} W${t.ftp.wkg ? ` · ${fmt(t.ftp.wkg, 2)} W/kg` : ""}` : "not set", t.ftp.source, hist(t.ftp.history, " W")],
+      ["Run threshold pace", t.run.current ? `${t.run.current}/km` : "not set", t.run.source, hist(t.run.history, "/km")],
+      ["Swim CSS", t.css.current ? `${t.css.current}/100 m` : "not set", t.css.source, hist(t.css.history, "/100 m")],
+      ["LTHR bike / run", `${t.lthr_bike ? fmt(t.lthr_bike) : "–"} / ${t.lthr_run ? fmt(t.lthr_run) : "–"} bpm`, t.lthr_est ? `estimated ${fmt(t.lthr_est)} (89% of max HR)` : "", ""],
+      ["Max HR · weight", `${t.max_hr ? fmt(t.max_hr) + " bpm" : "–"} · ${t.weight_kg ? fmt(t.weight_kg, 1) + " kg" : "–"}`, "", ""],
+    ].map(([l, v, s, h]) => `<tr><td>${esc(l)}</td><td><b>${esc(v)}</b>${s ? `<div class="sub">${esc(s)}</div>` : ""}</td><td class="sub">${esc(h)}</td></tr>`).join("");
+    mount("pg-ctl", (c) => xyChart(c, { x: "time", height: 170, aria: "Fitness over the year",
+      series: [{ points: f.series.map((r) => [r.date, r.ctl]), color: "var(--series-1)", label: "Fitness (CTL)" }, { points: f.series.map((r) => [r.date, r.atl]), color: "var(--series-2)", label: "Fatigue (ATL)", width: 1.5 }] }));
+    const sports = ["swim", "bike", "run", "strength", "other"].filter((s) => p.monthly.some((mo) => mo[s]));
+    mount("pg-monthly", (c) => stackBars(c, p.monthly.map((mo) => ({ key: mo.month, label: pd(mo.month + "-01").toLocaleDateString(undefined, { month: "short" }),
+      current: mo.month === todayKey().slice(0, 7), segs: sports.map((s) => [mo[s], SPORT_COLOR[s], s]),
+      tip: `<b>${esc(pd(mo.month + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" }))}</b>${sports.map((s) => mo[s] ? `<div><span class="k" style="background:${SPORT_COLOR[s]}"></span>${esc(SPORT[s] || s)}: <b>${fmt(mo[s], 1)} h</b></div>` : "").join("")}<div>TSS ${fmt(mo.tss)}</div>` })), { height: 170, yfmt: (v) => `${fmt(v)}h`, aria: "Hours per month by sport" }));
+    const mb = p.bike.monthly_bests || {}, mbKeys = Object.keys(mb), mbColors = ["var(--cat-1)", "var(--cat-2)", "var(--cat-3)"];
+    if (mbKeys.length) mount("pg-bests", (c) => xyChart(c, { x: "time", height: 170, aria: "Best power per month", yfmt: (v) => fmt(v), onClick: (pt) => { location.hash = sessionHref(pt.id); },
+      series: mbKeys.map((k, i) => ({ points: mb[k].map((pt) => [pt.date, pt.value, { ...pt, name: "" }]), color: mbColors[i], label: k, marks: true, tfmt: (v) => `${fmt(v)} W` })) }));
+    const hl = p.highlights.length ? p.highlights.map((h) => noteRow(h.level, h.text)).join("") : '<div class="empty">Not enough data for trends yet.</div>';
+    const r = p.run;
+    const preds = r.predictions ? `<section class="card"><h2>Race predictions <span class="muted">${esc(watch())}</span></h2><div class="stats">${Object.entries(r.predictions).map(([k, v]) => statBox(esc(v), k)).join("")}</div>${r.vo2max?.points?.length ? `<div class="muted">VO2max ${fmt(r.vo2max.points[r.vo2max.points.length - 1].value)}</div>` : ""}</section>` : "";
+    const ctlDelta = has(f.ctl) && has(f.ctl_6w_ago) ? f.ctl - f.ctl_6w_ago : null;
+    return `<section class="card"><h1 class="headline">Progress</h1><div class="subhead">The last 12 months: thresholds, fitness and whether the same efforts are getting easier.</div>
+        <div style="margin-top:10px">${hl}</div></section>
+      <div class="grid two"><section class="card"><h2>Thresholds <span class="muted">what TSS, zones and targets use</span></h2><div class="scroll"><table><tbody>${thRows}</tbody></table></div>
+          <div class="muted" style="margin-top:6px">Thresholds change only after you confirm a number with the coach (a test or a race).</div></section>
+        <section class="card"><h2>Fitness over the year</h2><div class="stats">${statBox(fmt(f.ctl), "CTL now")}${statBox(has(ctlDelta) ? `${ctlDelta > 0 ? "+" : ""}${fmt(ctlDelta)}` : "–", "vs 6 weeks ago")}${statBox(fmt(f.peak.ctl), `Peak · ${dshort(f.peak.date)}`)}</div>
+          <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Fitness (CTL)</span><span class="key"><span class="line" style="background:var(--series-2)"></span>Fatigue (ATL)</span></div><div class="chart" id="pg-ctl"></div></section></div>
+      <section class="card"><h2>Hours per month</h2>${sportLegend(sports)}<div class="chart" id="pg-monthly"></div></section>
+      ${powerCurveCard(p.bike.power_curve, "pg-curve")}
+      ${mbKeys.length ? `<section class="card"><h2>Best power per month</h2><div class="legend">${mbKeys.map((k, i) => `<span class="key"><span class="line" style="background:${mbColors[i]}"></span>${esc(k)}</span>`).join("")}</div><div class="chart" id="pg-bests"></div></section>` : ""}
+      <div class="grid two">${trendCard("pg-ride-ef", "Endurance-ride efficiency (NP / HR)", p.bike.endurance_ef, { dec: 2, label: "Ride (IF < 0.80)", note: "higher = more power at the same heart rate" })}
+        ${trendCard("pg-run-ef", "Easy-run efficiency", r.easy_ef, { dec: 2, label: "Run (IF < 0.85)", note: "metres per minute per heartbeat, higher is fitter" })}
+        ${trendCard("pg-run-dec", "HR drift on long runs", r.long_decoupling, { dec: 1, yfmt: (v) => `${fmt(v, 1)}%`, label: "Run ≥ 60 min", refs: [{ y: 5, label: "5%: solid base" }], note: "lower is better" })}
+        ${trendCard("pg-run-cad", "Run cadence", r.cadence, { dec: 0, label: "Run", note: "steps per minute" })}
+        ${trendCard("pg-swim", "Pool pace", p.swim.pace, { yfmt: paceFmt, invert: true, label: "Swim", note: "per 100 m, faster is higher" })}
+        ${r.vo2max && r.vo2max.n > 1 ? trendCard("pg-vo2", "VO2max", r.vo2max, { dec: 1, label: watch() }) : ""}</div>
+      ${preds}`;
+  });
+}
+
+// ---------------------------------------------------------------- Recovery
+function recoveryCalendar(days) {
+  if (!days.length) return '<div class="empty">No readiness data yet.</div>';
+  const first = mondayOf(days[0].date), byDate = new Map(days.map((x) => [x.date, x]));
+  let html = `<div class="cal"><span></span>${WD.map((w) => `<span class="h">${w}</span>`).join("")}`;
+  for (let w = first; w <= todayKey(); w = addDays(w, 7)) {
+    html += `<span class="cw">${esc(dshort(w))}</span>`;
+    for (let i = 0; i < 7; i++) {
+      const k = addDays(w, i), x = byDate.get(k);
+      const cls = !x ? "out" : x.status || "none", st = STATUS[x?.status];
+      html += `<span class="c ${cls}${k === todayKey() ? " today" : ""}" data-day="${k}">${x ? (st ? st.icon : "·") : ""}</span>`;
+    }
+  }
+  return html + "</div>";
+}
+function bindCalendar(days) {
+  const byDate = new Map(days.map((x) => [x.date, x]));
+  document.querySelectorAll(".cal .c[data-day]").forEach((c) => {
+    const x = byDate.get(c.dataset.day);
+    if (!x) return;
+    const show = () => {
+      const r = c.getBoundingClientRect(), st = STATUS[x.status];
+      showTip(`<div><b>${esc(wday(x.date))} ${esc(dshort(x.date))}</b> · ${esc(st ? st.label : "no data")}</div>
+        <div>HRV ${fmt(x.hrv)}${x.hrv_range ? ` (normal ${fmt(x.hrv_range[0])}–${fmt(x.hrv_range[1])})` : ""} · RHR ${fmt(x.rhr)}${has(x.rhr_delta) ? ` (${x.rhr_delta > 0 ? "+" : ""}${fmt(x.rhr_delta)})` : ""}</div>
+        <div>Sleep ${fmt(x.sleep_h, 1)} h${has(x.sleep_score) ? ` · score ${fmt(x.sleep_score)}` : ""} · TSS ${fmt(x.tss)}</div>${(x.flags || []).slice(0, 4).map((f) => `<div>• ${esc(f)}</div>`).join("")}`,
+        r.left + window.scrollX + r.width / 2, r.top + window.scrollY);
+    };
+    c.addEventListener("mouseenter", show); c.addEventListener("touchstart", show, { passive: true });
+    c.addEventListener("mouseleave", hideTip); c.addEventListener("touchend", () => setTimeout(hideTip, 1800));
+  });
+}
+
+function viewRecovery() {
+  return lazy("/api/view/recovery", (r) => {
+    const days = r.days, xmin = days[0]?.date, xmax = days[days.length - 1]?.date, c = r.counts_30d;
+    POST.push(() => bindCalendar(days));
+    const common = { x: "time", xmin, xmax, height: 120 };
+    const lastRange = [...days].reverse().find((x) => x.hrv_range)?.hrv_range;
+    mount("rc-tss", (el2) => xyChart(el2, { ...common, height: 100, zero: true, aria: "Daily TSS", series: [{ points: days.map((x) => [x.date, x.tss]), color: "var(--series-1)", kind: "bar", label: "TSS" }] }));
+    mount("rc-hrv", (el2) => xyChart(el2, { ...common, aria: "HRV", band: lastRange,
+      series: [{ points: days.map((x) => [x.date, x.hrv]), color: "var(--muted)", kind: "dots", label: "HRV night" }, { points: days.map((x) => [x.date, x.hrv_7d]), color: "var(--series-1)", label: "7-day avg" }] }));
+    mount("rc-rhr", (el2) => xyChart(el2, { ...common, aria: "Resting HR", series: [{ points: days.map((x) => [x.date, x.rhr]), color: "var(--series-1)", label: "Resting HR" }] }));
+    mount("rc-sleep", (el2) => xyChart(el2, { ...common, aria: "Sleep hours", yfmt: (v) => fmt(v, 1), series: [{ points: days.map((x) => [x.date, x.sleep_h]), color: "var(--series-1)", label: "Sleep h" }] }));
+    mount("rc-tsb", (el2) => xyChart(el2, { ...common, zero: true, aria: "Form", refs: [{ y: -30, label: "−30" }], series: [{ points: days.map((x) => [x.date, x.tsb]), color: "var(--series-1)", label: "Form (TSB)" }] }));
+    const bounce = r.bounce_back.map((b) => `<tr><td>Morning ${b.morning}${b.morning === 1 ? " (the next day)" : ""}</td><td class="num">${has(b.hrv_pct) ? `${b.hrv_pct > 0 ? "+" : ""}${fmt(b.hrv_pct, 1)}%` : "–"}</td><td class="num">${has(b.rhr) ? `${b.rhr > 0 ? "+" : ""}${fmt(b.rhr, 1)}` : "–"}</td><td class="num">${has(b.sleep_score) ? `${b.sleep_score > 0 ? "+" : ""}${fmt(b.sleep_score, 1)}` : "–"}</td><td class="num">${b.n}</td></tr>`).join("");
+    const eps = r.episodes.slice().reverse().map((e) => `<tr><td style="white-space:nowrap">${esc(dshort(e.start))} – ${esc(dshort(e.end))}</td><td class="num">${e.days}</td><td class="num">${e.red_days}</td><td>${esc(e.flags.join(", "))}</td><td class="num">${fmt(e.tss_7d_before)}</td></tr>`).join("");
+    const weekly = r.weekly.slice().reverse().map((w) => `<tr><td>${esc(dshort(w.week_of))}</td><td class="num">${fmt(w.tss)}</td><td class="num">${fmt(w.hrv)}</td><td class="num">${fmt(w.rhr)}</td><td class="num">${fmt(w.sleep_h, 1)}</td><td class="num">${fmt(w.ctl)}</td>
+      <td class="num">${["green", "amber", "red"].map((s) => `<span title="${STATUS[s].label}" style="color:${s === "amber" ? "var(--ink-2)" : STATUS[s].color}">${STATUS[s].icon}${w[s] || 0}</span>`).join(" ")}</td></tr>`).join("");
+    return `<section class="card"><h1 class="headline">Recovery</h1><div class="subhead">How your body has been answering the training: every morning's readiness, and how fast big days are absorbed.</div>
+        <div class="stats" style="margin-top:12px">${["green", "amber", "red"].map((s) => statBox(`<span style="color:${STATUS[s].color}">${STATUS[s].icon}</span> ${c[s]}`, `${STATUS[s].label} mornings · last 30 days`)).join("")}
+          ${statBox(r.back_to_baseline_morning ? `${r.back_to_baseline_morning}<small>${r.back_to_baseline_morning === 1 ? "day" : "days"}</small>` : "–", "HRV back to baseline after a big day")}</div>
+        ${r.summary.map((s) => `<div class="sub">${esc(s)}</div>`).join("")}</section>
+      <section class="card"><h2>Readiness calendar <span class="muted">${esc(dshort(r.window.start))} – ${esc(dshort(r.window.end))}</span></h2>${recoveryCalendar(days)}
+        <div class="legend" style="margin-top:8px">${["green", "amber", "red"].map((s) => `<span class="key"><span class="sw" style="background:${STATUS[s].color}"></span>${STATUS[s].icon} ${STATUS[s].label}</span>`).join("")}<span class="key"><span class="sw outline"></span>· no data</span></div></section>
+      <section class="card"><h2>Load and response <span class="muted">same days on every row</span></h2>
+        <div class="chart-label">Training load (TSS per day)</div><div class="chart" id="rc-tss"></div>
+        <div class="chart-label">HRV (ms): nights as dots, 7-day average as the line, shaded your current 60-day normal range</div><div class="chart" id="rc-hrv"></div>
+        <div class="chart-label">Resting HR (bpm)</div><div class="chart" id="rc-rhr"></div>
+        <div class="chart-label">Sleep (h)</div><div class="chart" id="rc-sleep"></div>
+        <div class="chart-label">Form (TSB): below −30 is deep fatigue</div><div class="chart" id="rc-tsb"></div></section>
+      <div class="grid two"><section class="card"><h2>After big days <span class="muted">${r.big_day_tss ? `≥ ${fmt(r.big_day_tss)} TSS · ${r.big_days.length} days` : "not enough data"}</span></h2>
+          ${bounce ? `<div class="scroll"><table><thead><tr><th>Morning</th><th class="num">HRV vs baseline</th><th class="num">RHR bpm</th><th class="num">Sleep score</th><th class="num">n</th></tr></thead><tbody>${bounce}</tbody></table></div>
+          <div class="muted" style="margin-top:6px">Baseline = your 30 days before each big day. A dip on morning 1 is normal; still down by morning 3 means space hard days further apart.</div>` : '<div class="empty">Not enough big days yet.</div>'}</section>
+        <section class="card"><h2>Strain episodes <span class="muted">2+ days of red or HRV / resting-HR flags</span></h2>
+          ${eps ? `<div class="scroll"><table><thead><tr><th>When</th><th class="num">Days</th><th class="num">Red</th><th>Signals</th><th class="num">TSS 7 d before</th></tr></thead><tbody>${eps}</tbody></table></div>
+          <div class="muted" style="margin-top:6px">High load before = training strain. Low load before = look at illness, travel, heat, alcohol or life stress.</div>` : '<div class="empty">None in this window.</div>'}</section></div>
+      <section class="card"><details><summary>Week by week</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Week of</th><th class="num">TSS</th><th class="num">HRV</th><th class="num">RHR</th><th class="num">Sleep h</th><th class="num">CTL</th><th class="num">Mornings</th></tr></thead><tbody>${weekly}</tbody></table></div></details></section>`;
+  });
+}
+
+// ---------------------------------------------------------------- Sports
+const SPORT_TABS = ["swim", "bike", "run", "strength"];
+function defaultSport() { return cycling() ? "bike" : "run"; }
+function sessionsTable(list) {
+  if (!list.length) return '<div class="empty">No sessions in the last 12 weeks.</div>';
+  return `<div class="scroll"><table><thead><tr><th>Date</th><th>Session</th><th class="num">Time</th><th class="num">km</th><th class="num">Pace / speed</th><th class="num">TSS</th><th class="num">IF</th><th class="num">HR</th></tr></thead><tbody>
+    ${list.map((a) => `<tr><td style="white-space:nowrap">${esc(dshort(a.start.slice(0, 10)))}</td><td><a href="${sessionHref(a.id)}">${esc(a.name || a.type || "")}</a></td><td class="num">${esc(a.time || "")}</td>
+      <td class="num">${fmt(a.distance_km, a.sport === "swim" ? 2 : 1)}</td><td class="num">${esc(a.sport === "run" ? (a.pace_km ? a.pace_km + "/km" : "–") : a.sport === "swim" ? (a.pace_100m ? a.pace_100m + "/100m" : "–") : a.avg_speed_kmh ? fmt(a.avg_speed_kmh, 1) + " km/h" : "–")}</td>
+      <td class="num">${fmt(a.tss)}</td><td class="num">${fmt(a.if, 2)}</td><td class="num">${fmt(a.avg_hr)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+function viewSport(d, sport) {
+  sport = SPORT_TABS.includes(sport) ? sport : defaultSport();
+  return lazy(`/api/view/sport?sport=${sport}`, (s) => {
+    const avail = SPORT_TABS.filter((x) => s.available.includes(x) || x === sport || (cycling() ? x === "bike" : ["swim", "bike", "run"].includes(x)));
+    const seg = `<div class="seg" role="group" aria-label="Sport">${avail.map((x) => `<a href="#sports/${x}" ${x === sport ? 'aria-current="page"' : ""}>${esc(SPORT[x])}</a>`).join("")}</div>`;
+    const P = s.periods, useKm = sport !== "strength";
+    const per = (k, label) => { const x = P[k] || {}; return statBox(`${fmt(x.hours, 1)}<small>h</small>`, `${label}: ${x.sessions || 0} sessions${useKm && x.km ? ` · ${fmt(x.km, sport === "swim" ? 1 : 0)} km` : ""} · ${fmt(x.tss)} TSS${x.elevation_m ? ` · ${fmt(x.elevation_m)} m` : ""}`); };
+    const unit = sport === "strength" ? "h" : "km";
+    mount("sp-weeks", (c) => stackBars(c, s.weeks.map((w) => ({ key: w.week_of, label: w.current ? "this wk" : dshort(w.week_of), current: w.current,
+      segs: [[unit === "km" ? w.km : w.hours, SPORT_COLOR[sport] || "var(--series-1)"]], mark: w.ramp_pct || w.long_share_pct ? "!" : "",
+      tip: `<b>Week of ${esc(dshort(w.week_of))}</b><div>${w.sessions || 0} sessions · ${fmt(w.hours, 1)} h${w.km ? ` · ${fmt(w.km, 1)} km` : ""} · ${fmt(w.tss)} TSS</div>${w.longest_km ? `<div>Longest ${fmt(w.longest_km, 1)} km · ${fmt(w.longest_h, 1)} h</div>` : ""}${w.ramp_pct ? `<div>! +${fmt(w.ramp_pct)}% vs the week before</div>` : ""}${w.long_share_pct ? `<div>! long run ${fmt(w.long_share_pct)}% of the week</div>` : ""}` })), { height: 160, yfmt: (v) => `${fmt(v)}${unit}`, aria: `${sport} volume per week` }));
+    const zcard = (z, label) => `<div><div class="section-label">${esc(label)}${z.hr_basis ? ` · HR zones on ${esc(z.hr_basis)}` : ""}</div>${threeZone(z.three_zone)}${zoneBars(z.hr)}
+      ${z.power.length ? `<div class="section-label">Power zones</div>${zoneBars(z.power)}` : ""}${!z.hr.length && !z.power.length ? `<div class="empty">No zone data${z.sessions_without ? ` (${z.sessions_without} sessions without HR zones: set LTHR or max HR with the coach)` : ""}.</div>` : ""}</div>`;
+    const T = s.trends || {};
+    const trends = sport === "bike" ? [trendCard("sp-t1", "Outdoor speed", T.speed_outdoor, { dec: 1, label: "Outdoor ride", note: "km/h, terrain and wind dominate" }),
+      trendCard("sp-t2", "Efficiency (NP / HR)", T.ef, { dec: 2, label: "Ride (IF < 0.80)" }), trendCard("sp-t3", "Cadence", T.cadence, { dec: 0, label: "Ride", note: "rpm" })]
+      : sport === "run" ? [trendCard("sp-t1", "Pace", T.pace, { yfmt: paceFmt, invert: true, label: "Run", note: "per km, faster is higher" }), trendCard("sp-t2", "Efficiency", T.ef, { dec: 2, label: "Run (IF < 0.85)" }),
+        trendCard("sp-t3", "Cadence", T.cadence, { dec: 0, label: "Run", note: "steps per minute" }), trendCard("sp-t4", "Long run per week", T.long_run_km, { dec: 1, label: "Week", note: "km" })]
+      : sport === "swim" ? [trendCard("sp-t1", "Pool pace", T.pace, { yfmt: paceFmt, invert: true, label: "Swim", note: "per 100 m" }), trendCard("sp-t2", "Distance per swim", T.distance_km, { dec: 2, label: "Swim", note: "km" })] : [];
+    const split = s.split ? `<div class="muted">Last 12 weeks: ${Object.entries(s.split).map(([k, v]) => `${esc(typeName(k))} ${v.sessions || 0}× ${fmt(v.hours, 1)} h`).join(" · ")}</div>` : "";
+    const TH = { ftp: (v) => `FTP ${fmt(v)} W`, weight_kg: (v) => `${fmt(v, 1)} kg`, run_threshold: (v) => `Threshold pace ${v}/km`, lthr_run: (v) => `LTHR ${fmt(v)} bpm`, css: (v) => `CSS ${v}/100 m` };
+    const th = s.thresholds ? Object.entries(s.thresholds).filter(([k, v]) => has(v) && TH[k]).map(([k, v]) => esc(TH[k](v))).join(" · ") : "";
+    const preds = s.predictions ? `<div class="muted">${esc(watch())} predictions: ${Object.entries(s.predictions).map(([k, v]) => `${esc(k)} ${esc(v)}`).join(" · ")}</div>` : "";
+    return `${seg}<section class="card" style="margin-top:12px"><h1 class="headline">${esc(SPORT[sport])}</h1>${th ? `<div class="subhead">${th}</div>` : ""}
+        <div class="stats" style="margin-top:12px">${per("7d", "7 days")}${per("28d", "4 weeks")}${per("84d", "12 weeks")}${per("365d", "12 months")}</div>${split}${preds}
+        ${s.flags.length ? `<div style="margin-top:8px">${s.flags.map((f) => noteRow("warn", f)).join("")}</div>` : ""}</section>
+      <section class="card"><h2>${unit === "km" ? "Distance" : "Hours"} per week <span class="muted">26 weeks${sport === "run" ? " · ! = more than +10% or a long run over 30% of the week" : ""}</span></h2><div class="chart" id="sp-weeks"></div></section>
+      ${sport !== "strength" ? `<section class="card"><h2>Intensity</h2><div class="grid two">${zcard(s.zones_28d, "Last 4 weeks")}${zcard(s.zones_84d, "Last 12 weeks")}</div></section>` : ""}
+      ${sport === "bike" ? powerCurveCard(s.power_curve, "sp-curve") : ""}
+      <div class="grid two">${trends.join("")}</div>
+      <section class="card"><h2>Sessions <span class="muted">last 12 weeks · opens the session</span></h2>${sessionsTable(s.sessions)}</section>`;
+  });
+}
+
+// ---------------------------------------------------------------- Session detail
+function viewSession(d, id) {
+  return lazy(`/api/view/session/${id}`, (x) => {
+    const o = x.overview, m = x.metrics || {}, w = x.watch || {}, th = x.thresholds || {}, sp = o.sport;
+    const nb = x.neighbours || {};
+    const speed = sp === "run" ? (o.pace_km ? [`${o.pace_km}<small>/km</small>`, o.ngp_km && o.ngp_km !== o.pace_km ? `Pace · NGP ${o.ngp_km}` : "Pace"] : null)
+      : sp === "swim" ? (o.pace_100m ? [`${o.pace_100m}<small>/100m</small>`, "Pace"] : null) : o.avg_speed_kmh ? [`${fmt(o.avg_speed_kmh, 1)}<small>km/h</small>`, "Speed"] : null;
+    const dec = m.decoupling?.decoupling_pct;
+    const stats = [[esc(o.time || "–"), "Moving time"], o.distance_km ? [`${fmt(o.distance_km, sp === "swim" ? 2 : 1)}<small>km</small>`, "Distance"] : null, speed,
+      [o.tss ? fmt(o.tss) : "–", `TSS${o.tss_source ? " · " + o.tss_source : ""}`], o.if ? [fmt(o.if, 2), "Intensity factor"] : null,
+      o.np ? [`${fmt(o.np)}<small>W</small>`, `NP · avg ${fmt(o.avg_power)} W${m.vi ? ` · VI ${fmt(m.vi, 2)}` : ""}`] : null,
+      o.avg_hr ? [`${fmt(o.avg_hr)}<small>bpm</small>`, `Avg HR${m.max_hr ? ` · max ${fmt(m.max_hr)}` : ""}`] : null,
+      o.elevation_m ? [`${fmt(o.elevation_m)}<small>m</small>`, "Climbing"] : null,
+      has(dec) ? [`${fmt(dec, 1)}<small>%</small>`, `HR drift (decoupling)${dec < 5 ? " · solid" : dec > 8 ? " · high" : ""}`] : null,
+      m.avg_cadence ? [fmt(m.avg_cadence), sp === "run" ? "Cadence spm" : "Cadence rpm"] : null,
+      o.ef ? [fmt(o.ef, sp === "run" ? 3 : 2), "Efficiency"] : null, m.kj ? [`${fmt(m.kj)}<small>kJ</small>`, "Work"] : null]
+      .filter(Boolean).map(([v, l]) => statBox(v, l)).join("");
+    const watchBits = [w.aerobic_te !== undefined ? `Training effect ${w.aerobic_te}/${w.anaerobic_te}` : "", w.training_focus ? `focus ${w.training_focus}` : "", w.training_load ? `${watch()} load ${fmt(w.training_load)}` : "",
+      w.perceived_effort ? `RPE ${w.perceived_effort}` : "", w.calories ? `${fmt(w.calories)} kcal` : "", w.water_temp_c ? `water ${fmt(w.water_temp_c, 1)} °C` : "", m.avg_temp_c ? `${fmt(m.avg_temp_c, 1)} °C` : ""].filter(Boolean).join(" · ");
+    const planned = Array.isArray(x.planned_session) ? x.planned_session : [];
+    const plannedHtml = planned.length ? planned.map((p) => `<div class="item ${planIntensity(p)}"><div class="title">${sportTag(p.sport)}${esc(p.title)}</div><div class="sub">${esc(sessionBits(p))}</div>${p.targets ? `<div class="targets">${esc(p.targets)}</div>` : ""}</div>`).join("") : '<div class="empty">Nothing was planned that day.</div>';
+    const S = x.series || {}, t = S.t_min || [];
+    const pts = (arr) => (arr || []).map((v, i) => [t[i], v]);
+    // Stops and walk breaks show up as very slow pace: drop what is far slower than the session's median.
+    const clip = (arr) => { const v = (arr || []).filter(has).sort((a, b) => a - b), med = v[Math.floor(v.length / 2)]; return arr && arr.map((x) => has(x) && x <= med * 1.5 ? x : null); };
+    const tfmt = (v) => `${Math.floor(v)}:${pad(Math.round((v % 1) * 60))}`;
+    const charts = [];
+    const chart = (key, label, arr, opts) => { if (!arr || !arr.some(has)) return; charts.push(`<div class="chart-label">${esc(label)}</div><div class="chart" id="ss-${key}"></div>`);
+      mount(`ss-${key}`, (c) => xyChart(c, { x: "linear", height: 120, xfmt: (v) => `${fmt(v)}′`, tipTitle: (p) => `${tfmt(p[0])} min`, ...opts, series: [{ points: pts(arr), color: opts.color || "var(--series-1)", label, width: 1.5, tfmt: opts.yfmt }] })); };
+    const lthr = sp === "run" ? th.lthr_run : th.lthr_bike;
+    chart("power", "Power (W, 10 s average)", S.power, { refs: th.ftp ? [{ y: th.ftp, label: `FTP ${fmt(th.ftp)}` }] : [], zero: true });
+    chart("hr", "Heart rate (bpm)", S.hr, { refs: lthr ? [{ y: lthr, label: `LTHR ${fmt(lthr)}` }] : [], color: "var(--series-2)" });
+    chart("pace", "Pace (per km, stops left out)", clip(S.pace_s_km), { invert: true, yfmt: paceFmt, refs: th.run_threshold_s_km ? [{ y: th.run_threshold_s_km, label: `threshold ${pace(th.run_threshold_s_km)}` }] : [] });
+    chart("pace100", "Pace (per 100 m)", clip(S.pace_s_100m), { invert: true, yfmt: paceFmt });
+    chart("speed", "Speed (km/h)", S.kmh, { yfmt: (v) => fmt(v, 1) });
+    chart("alt", "Altitude (m)", S.altitude, {});
+    chart("cad", sp === "run" ? "Cadence (spm)" : "Cadence", S.cadence, {});
+    const zs = x.zones_s || {};
+    const zrows = (z) => { const tot = Object.values(z || {}).reduce((a, v) => a + v, 0) || 1; return Object.entries(z || {}).map(([k, v]) => ({ zone: k, h: v / 3600, pct: (100 * v) / tot })); };
+    const laps = x.laps || [];
+    const lapCols = [["lap", "Lap"], ["km", "km"], ["time_s", "Time"], ["pace_s_km", "Pace"], ["gap_s_km", "GAP"], ["pace_s_100m", "/100m"], ["kmh", "km/h"], ["avg_power", "W"], ["np", "NP"], ["pct_ftp", "% FTP"], ["pct_threshold_pace", "% thr"], ["avg_hr", "HR"], ["max_hr", "Max HR"], ["cadence", "Cad"], ["ascent_m", "Up m"]]
+      .filter(([k]) => laps.some((l) => has(l[k])));
+    const lapVal = (k, v) => !has(v) ? "–" : ["pace_s_km", "gap_s_km", "pace_s_100m"].includes(k) ? pace(v) : k === "time_s" ? tfmt(v / 60) : fmt(v, k === "km" ? 2 : k === "kmh" ? 1 : 0);
+    const lapTable = laps.length > 1 ? `<section class="card"><h2>Laps <span class="muted">${laps.length}</span></h2><div class="scroll"><table><thead><tr>${lapCols.map(([, l]) => `<th class="num">${esc(l)}</th>`).join("")}</tr></thead><tbody>
+      ${laps.map((l) => `<tr>${lapCols.map(([k]) => `<td class="num">${esc(lapVal(k, l[k]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div></section>` : "";
+    const iv = x.intervals;
+    const ivTable = iv && iv.reps?.length ? `<section class="card"><h2>Work intervals <span class="muted">${iv.count} found · ${esc(iv.basis || "")}${iv.band_w ? ` · band ${fmt(iv.band_w[0])}–${iv.band_w[1] ? fmt(iv.band_w[1]) : "∞"} W` : ""}</span></h2><div class="scroll"><table><thead><tr><th class="num">#</th><th class="num">Start</th><th class="num">Duration</th><th class="num">Avg W</th><th class="num">NP</th><th class="num">% FTP</th><th class="num">HR</th><th class="num">HR drift</th></tr></thead><tbody>
+      ${iv.reps.map((r, i) => `<tr><td class="num">${i + 1}</td><td class="num">${fmt(r.start_min, 1)}′</td><td class="num">${esc(r.duration)}</td><td class="num">${fmt(r.avg_power)}</td><td class="num">${fmt(r.np)}</td><td class="num">${fmt(r.pct_ftp)}</td><td class="num">${fmt(r.avg_hr)}</td><td class="num">${has(r.pw_hr_drift_pct) ? fmt(r.pw_hr_drift_pct, 1) + "%" : "–"}</td></tr>`).join("")}</tbody></table></div>${has(iv.fade_pct) ? `<div class="sub">Last rep vs first: ${iv.fade_pct > 0 ? "+" : ""}${fmt(iv.fade_pct, 1)}% power${has(iv.hr_rise_bpm) ? `, ${iv.hr_rise_bpm > 0 ? "+" : ""}${fmt(iv.hr_rise_bpm)} bpm HR` : ""}.</div>` : ""}</section>` : "";
+    const bests = (m.best_efforts || []).length ? `<section class="card"><h2>Best efforts</h2><div class="scroll"><table><thead><tr><th>Duration</th><th class="num">W</th><th class="num">W/kg</th><th class="num">90-day best before</th><th></th></tr></thead><tbody>
+      ${m.best_efforts.map((b) => `<tr><td>${esc(b.duration)}</td><td class="num">${fmt(b.watts)}</td><td class="num">${has(b.w_kg) ? fmt(b.w_kg, 2) : "–"}</td><td class="num">${fmt(b.prior_90d_best)}</td><td>${b.new_90d_best ? '<span class="badge"><span class="dot" style="background:var(--good)"></span>✓ new 90-day best</span>' : ""}</td></tr>`).join("")}</tbody></table></div></section>` : "";
+    const form = x.form_going_in || {};
+    const day = x.date, inPlan = !!dayOf(day);
+    const garmin = DATA.app.provider === "garmin" ? ` · <a href="https://connect.garmin.com/modern/activity/${encodeURIComponent(o.id)}" target="_blank" rel="noopener">Garmin Connect ↗</a>` : "";
+    return `${crumbs([[cycling() ? "Rides" : "Sessions", "sessions"], [o.name || o.type || "Session"]])}
+      ${pager(nb.prev && ["Previous", `session/${nb.prev}`], nb.next && ["Next", `session/${nb.next}`])}
+      <section class="card"><div class="kicker">${sportTag(sp)}<span>${esc(dlong(day))} · ${esc((o.start || "").slice(11, 16))}</span>${o.type ? `<span>· ${esc(typeName(o.type))}</span>` : ""}${inPlan ? `<a href="#plan/day/${day}">plan day ›</a>` : ""}${garmin}</div>
+        <h1 class="headline">${esc(o.name || o.type || "Session")}</h1>
+        <div class="stats" style="margin-top:12px">${stats}</div>
+        ${watchBits ? `<div class="muted">${esc(watchBits)}</div>` : ""}${o.note ? `<div class="note">“${esc(o.note)}”</div>` : ""}
+        ${x.note ? `<div class="muted" style="margin-top:6px">${esc(x.note)}</div>` : ""}
+        ${(nb.same_day || []).length ? `<div class="muted" style="margin-top:6px">Same day: ${nb.same_day.map((s) => `<a href="${sessionHref(s.id)}">${esc(SPORT[s.sport] || s.sport)} · ${esc(s.name || "")}</a>`).join(" · ")}</div>` : ""}</section>
+      <div class="grid two"><section class="card"><h2>Planned that day</h2>${plannedHtml}</section>
+        <section class="card"><h2>Form going in</h2><div class="stats">${statBox(fmt(form.ctl), "Fitness (CTL)")}${statBox(fmt(form.atl), "Fatigue (ATL)")}${statBox(fmt(form.tsb), "Form (TSB)")}</div>
+          ${m.decoupling?.note ? `<div class="muted">${esc(m.decoupling.note)}</div>` : ""}</section></div>
+      ${charts.length ? `<section class="card"><h2>Over the session <span class="muted">minutes on the x-axis</span></h2>${charts.join("")}</section>` : `<section class="card"><div class="empty">No second-by-second data${x.fit_status && x.fit_status !== "ok" ? ` (FIT file ${esc(x.fit_status)})` : ""}.</div></section>`}
+      ${zs.hr || zs.power ? `<section class="card"><h2>Zones${zs.hr_basis ? ` <span class="muted">HR on ${esc(zs.hr_basis)}</span>` : ""}</h2><div class="grid two">${zs.hr ? `<div><div class="section-label">Heart rate</div>${zoneBars(zrows(zs.hr))}</div>` : ""}${zs.power ? `<div><div class="section-label">Power</div>${zoneBars(zrows(zs.power))}</div>` : ""}</div></section>` : ""}
+      ${ivTable}${lapTable}${bests}`;
+  });
+}
+const planIntensity = (p) => ({ rest: "rest", recovery: "easy", endurance: "easy", long: "easy", technique: "easy", tempo: "moderate", sweet_spot: "moderate", brick: "moderate", threshold: "hard", vo2max: "hard", anaerobic: "hard", race: "hard", test: "hard" }[p.type] || "easy");
+
+// ---------------------------------------------------------------- Races
+function viewRaces(d) {
+  return lazy("/api/view/races", (r) => {
+    const up = r.events.filter((e) => e.days_to_go >= 0), past = r.events.filter((e) => e.days_to_go < 0).reverse();
+    if (!r.events.length) return `<section class="card"><h1 class="headline">Races</h1><div class="empty" style="margin-top:8px">No events yet. Tell the coach your races (name, date, format, A/B/C priority) and they show up here with a countdown, projected race-day form and a race plan.</div></section>`;
+    const evs = up.map((e) => ({ date: e.date, name: e.name }));
+    mount("rc-form", (c) => lineChart(c, { rows: r.form, height: 200, todayKey: r.today, events: evs, endLabels: true, zeroLine: true, aria: "Fitness and form toward the races",
+      series: [{ key: "ctl", label: "Fitness (CTL)", color: "var(--series-1)" }, { key: "tsb", label: "Form (TSB)", color: "var(--series-2)" }],
+      tipRows: [["Fitness", "ctl", "var(--series-1)"], ["Form", "tsb", "var(--series-2)"], ["TSS", "tss"]] }));
+    const pr = (p) => p ? `${p.tsb > 0 ? "+" : ""}${fmt(p.tsb)}` : "–";
+    const card = (e) => {
+      const p = e.plan || {}, tp = e.taper || {};
+      const verdictColor = /as targeted/.test(e.form_verdict || "") ? "var(--good)" : /fatigued/.test(e.form_verdict || "") ? "var(--critical)" : "var(--warning)";
+      const keys = (p.key_sessions || []).map((k) => `<li><a href="#plan/day/${k.date}">${esc(wday(k.date))} ${esc(dshort(k.date))}</a> ${sportTag(k.sport)}${esc(k.title)}</li>`).join("");
+      const coverage = p.covered_until ? (p.covered_until >= e.date ? "The plan runs through race day." : `The plan ends ${dshort(p.covered_until)}: ask the coach to plan up to the race.`) : "No sessions planned toward this race yet.";
+      return `<section class="card event-card" id="race-${e.date}"><div class="kicker">${e.priority ? `<span class="pill">${esc(e.priority)} race</span>` : ""}${e.format ? `<span>${esc(e.format)}</span>` : ""}<span>${esc(dlong(e.date))}</span></div>
+        <h1 class="headline">${esc(e.name)}</h1>
+        <div class="stats" style="margin-top:12px">${statBox(`${e.days_to_go}<small>${e.days_to_go === 1 ? "day" : "days"}</small>`, `to go · ${Math.floor(e.days_to_go / 7)} weeks`)}
+          ${statBox(pr(e.projected), "Projected form (TSB) on the day")}${statBox(fmt(e.projected?.ctl), `Projected fitness (CTL) · now ${fmt(r.ctl_today)}`)}
+          ${statBox(p.sessions ? `${p.sessions}<small>· ${fmt(p.hours, 0)} h</small>` : "0", "Sessions planned until then")}</div>
+        ${e.form_verdict ? `<div class="row"><span class="badge"><span class="dot" style="background:${verdictColor}"></span>${esc(e.form_verdict)}</span></div>` : ""}
+        <div class="sub" style="margin-top:6px">${esc(coverage)}${tp.block ? ` Taper: ${esc(tp.block)}.` : ""}${has(tp.reduction_pct) ? ` Last 10 days ${fmt(tp.last_10d_tss)} TSS vs ${fmt(tp.prior_10d_tss)} the 10 before (${tp.reduction_pct > 0 ? "−" : "+"}${fmt(Math.abs(tp.reduction_pct))}%; a taper cuts 40–60%).` : ""}</div>
+        ${(e.blocks || []).length ? `<div class="muted" style="margin-top:4px">Blocks: ${e.blocks.map((b) => `<a href="#plan/block/${b.id}">${esc(b.name)}</a>${b.phase ? ` (${esc(b.phase)})` : ""}`).join(" → ")}</div>` : ""}
+        ${keys ? `<div class="section-label">Key sessions before it</div><ul class="flags">${keys}</ul>` : ""}
+        <div class="section-label">Race plan${e.race_plan_updated ? ` · ${esc(dshort(e.race_plan_updated))}` : ""}</div>
+        ${e.race_plan ? richText(e.race_plan) : '<div class="empty">No race plan yet. Ask the coach for pacing, fueling and logistics; it saves them here.</div>'}</section>`;
+    };
+    const pastCard = (e) => `<section class="card event-card past"><div class="kicker">${e.priority ? `<span class="pill">${esc(e.priority)}</span>` : ""}${e.format ? `<span>${esc(e.format)}</span>` : ""}<span>${esc(dlong(e.date))}</span></div>
+      <h2>${esc(e.name)}<span class="muted">${e.form_on_the_day ? `form ${pr(e.form_on_the_day)} · CTL ${fmt(e.form_on_the_day.ctl)}` : ""}</span></h2>
+      ${(e.activities || []).length ? e.activities.map((a) => `<div class="ride"><b>${sportTag(a.sport)}<a href="${sessionHref(a.id)}">${esc(a.name || a.type || "")}</a></b><div class="sub">${esc([a.time, a.distance_km ? `${fmt(a.distance_km, a.sport === "swim" ? 2 : 1)} km` : "", a.pace_km ? a.pace_km + "/km" : "", a.avg_speed_kmh ? fmt(a.avg_speed_kmh, 1) + " km/h" : "", a.avg_hr ? `HR ${fmt(a.avg_hr)}` : "", a.tss ? `TSS ${fmt(a.tss)}` : ""].filter(Boolean).join(" · "))}</div></div>`).join("") : '<div class="empty">Nothing recorded that day.</div>'}
+      ${e.result ? `<div class="section-label">Result</div>${richText(e.result)}` : ""}${e.race_plan ? `<details><summary>Race plan</summary>${richText(e.race_plan)}</details>` : ""}</section>`;
+    const preds = r.predictions ? `<section class="card"><h2>Run predictions <span class="muted">${esc(watch())}, standalone runs</span></h2><div class="stats">${Object.entries(r.predictions).map(([k, v]) => statBox(esc(v), k)).join("")}</div></section>` : "";
+    return `${up.length ? `<section class="card"><h2>Fitness and form toward the races <span class="muted">dashed after today = from the saved plan</span></h2>
+        <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Fitness (CTL)</span><span class="key"><span class="line" style="background:var(--series-2)"></span>Form (TSB): race-day target +10 to +25</span></div><div class="chart" id="rc-form"></div></section>` : ""}
+      ${up.map(card).join("")}${preds}
+      ${past.length ? `<div class="section-label">Past events</div>${past.map(pastCard).join("")}` : ""}`;
+  });
 }
 
 // ---------------------------------------------------------------- Settings
@@ -1370,21 +1872,24 @@ function renderSettings() {
 // ---------------------------------------------------------------- routing
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
-  return TABS().some((t) => t[0] === parts[0]) ? parts : ["today"];
+  return TABS().some((t) => t[0] === parts[0]) || (parts[0] === "session" && /^\d+$/.test(parts[1] || "")) ? parts : ["today"];
 }
 
 function render() {
   const d = DATA, parts = route(), tab = parts[0];
   document.title = d.app.title;
   document.getElementById("title").textContent = d.app.title;
-  document.getElementById("tabs").innerHTML = TABS().map(([k, label]) => `<a href="#${k}" ${k === tab ? 'aria-current="page"' : ""}>${label}</a>`).join("");
+  const active = tab === "session" ? "sessions" : tab;
+  document.getElementById("tabs").innerHTML = TABS().map(([k, label]) => `<a href="#${k}" ${k === active ? 'aria-current="page"' : ""}>${label}</a>`).join("");
   POST = [];
   hideTip();
   let html;
   if (tab === "plan" && parts[1] === "block") html = viewBlock(d, parts[2]);
   else if (tab === "plan" && parts[1] === "week") html = viewWeek(d, parts[2]);
   else if (tab === "plan" && parts[1] === "day") html = viewDay(d, parts[2]);
-  else html = { today: viewToday, plan: viewPlan, health: viewHealth, sleep: viewSleep, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
+  else if (tab === "session") html = viewSession(d, parts[1]);
+  else if (tab === "sports") html = viewSport(d, parts[1]);
+  else html = { today: viewToday, plan: viewPlan, races: viewRaces, progress: viewProgress, recovery: viewRecovery, health: viewHealth, sleep: viewSleep, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
   document.getElementById("app").innerHTML = html;
   POST.forEach((f) => f());
   if (tab === "settings") renderSettings();
@@ -1398,6 +1903,7 @@ async function load() {
     const res = await fetch("/api/dashboard", { cache: "no-store" });
     if (!res.ok) throw new Error((await res.json()).error || res.status);
     DATA = await res.json();
+    Object.values(VIEWS).forEach((v) => { v.stale = true; });
     // Don't wipe a half-typed key or login address on the Settings tab.
     if (route()[0] === "settings" && document.activeElement?.tagName === "INPUT") return;
     render();

@@ -206,14 +206,16 @@ def _stats(values: list[float]) -> tuple[float | None, float | None]:
     return statistics.fmean(values), statistics.stdev(values)
 
 
-def readiness(day: date, load: dict[str, Any] | None = None) -> dict[str, Any]:
+def readiness(day: date, load: dict[str, Any] | None = None, history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Compare last night / today against 7-day and 60-day personal baselines.
 
     Garmin and COROS both date sleep and overnight HRV by wake-up day, so `day` covers the night before it.
+    `history` (the 61 day records ending on `day`) lets a caller judge many days from one read; it skips the cycle.
     """
     provider = settings.provider()
     watch = settings.provider_label(provider)
-    history = rows(day - timedelta(days=60), day)
+    with_cycle = history is None
+    history = history if history is not None else rows(day - timedelta(days=60), day)
     today = history[-1]
     prior = history[:-1]
     last7 = history[-7:]
@@ -305,7 +307,7 @@ def readiness(day: date, load: dict[str, Any] | None = None) -> dict[str, Any]:
         "recovery": recovery,
         "watch": watch,
         "stress_yesterday": yesterday.get("stress_avg"),
-        **({"cycle": cycle} if (cycle := cycle_status(day)) else {}),
+        **({"cycle": cycle} if with_cycle and (cycle := cycle_status(day)) else {}),
         "load": load,
         "data_present": any(v is not None for k, v in today.items() if k != "date"),
     }

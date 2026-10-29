@@ -9,6 +9,7 @@ from typing import Any
 
 from . import athlete, coach, health, plan, settings, sleep, store
 from .config import NON_TRAINING_SPORTS
+from .util import js_safe
 
 _HISTORY_DAYS = 90
 _MAX_HISTORY_WEEKS = 12
@@ -147,4 +148,4 @@ def build_json() -> bytes:
     t = time.time()
     data = build()
     data["build_ms"] = round((time.time() - t) * 1000)
-    return json.dumps(data, default=str).encode()
+    return json.dumps(js_safe(data), default=str).encode()

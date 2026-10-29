@@ -385,7 +385,7 @@ def zone_distribution(days: int = 28, sport: str | None = None, end: date | None
 
 # ---------------------------------------------------------------- single session
 
-def analyze_session(activity_id: int | None = None, sport: str | None = None) -> dict[str, Any]:
+def analyze_session(activity_id: int | None = None, sport: str | None = None, remote_laps: bool = True) -> dict[str, Any]:
     a = store.activity(activity_id) if activity_id else store.latest_activity(sport)
     if not a:
         return {"error": "Activity not found in cache. Run sync_data first."}
@@ -399,7 +399,7 @@ def analyze_session(activity_id: int | None = None, sport: str | None = None) ->
     else:
         m = a["metrics"]
         out["note"] = f"No FIT stream (status {a['fit_status']}); metrics from the {settings.provider_label()} summary only."
-    if settings.provider() == "coros" and a["sport"] in ("run", "swim") and len(out.get("laps") or []) <= 1:
+    if remote_laps and settings.provider() == "coros" and a["sport"] in ("run", "swim") and len(out.get("laps") or []) <= 1:
         try:
             from . import coros_api, coros_parse
             out["laps"] = coros_parse.laps(coros_api.call("queryActivityLapData", labelId=str(a["id"]),

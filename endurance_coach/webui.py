@@ -13,7 +13,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from . import dashboard, settings, store, sync
+from . import dashboard, settings, store, sync, views
+from .util import js_safe
 
 _LOGGER = logging.getLogger(__name__)
 _PAGE = Path(__file__).with_name("dashboard.html")
@@ -22,6 +23,28 @@ _MAX_BODY = 16_384
 
 class _UnknownAction(Exception):
     pass
+
+
+_SPORTS = ("swim", "bike", "run", "strength", "multisport")
+
+
+def _view(path: str, query: dict[str, list[str]]) -> Any:
+    """Read-only views the tabs load on demand (they take longer than the main dashboard payload)."""
+    name = path.removeprefix("/api/view/")
+    if name == "progress":
+        return views.progress()
+    if name == "recovery":
+        return views.recovery()
+    if name == "races":
+        return views.races()
+    if name == "sport":
+        sport = (query.get("sport") or ["bike"])[0]
+        if sport not in _SPORTS:
+            raise ValueError(f"unknown sport {sport!r}")
+        return views.sport_view(sport)
+    if name.startswith("session/") and name.removeprefix("session/").isdigit():
+        return views.session_detail(int(name.removeprefix("session/")))
+    raise _UnknownAction(path)
 
 
 def settings_state() -> dict[str, Any]:
@@ -93,7 +116,7 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(status, json.dumps(payload, default=str).encode(), "application/json")
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib naming
-        path = self.path.split("?", 1)[0]
+        path, _, query = self.path.partition("?")
         try:
             if path in ("/", "/index.html"):
                 self._send(200, _PAGE.read_bytes(), "text/html; charset=utf-8")
@@ -101,10 +124,14 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(200, dashboard.build_json(), "application/json")
             elif path == "/api/settings":
                 self._json(200, settings_state())
+            elif path.startswith("/api/view/"):
+                self._json(200, js_safe(_view(path, urllib.parse.parse_qs(query))))
             elif path == "/healthz":
                 self._send(200, b"ok", "text/plain")
             else:
                 self._send(404, b"not found", "text/plain")
+        except _UnknownAction:
+            self._send(404, b"not found", "text/plain")
         except Exception as exc:  # noqa: BLE001
             _LOGGER.exception("dashboard request failed")
             self._json(500, {"error": str(exc)})
