@@ -49,8 +49,8 @@ and `coach.env`. Two athletes on one machine = two checkouts of this repo.
 
 | Command | What it does |
 |---|---|
-| `/checkin` | Morning readiness, then today's session (or rest) |
-| `/session-review` | Coach review of the latest ride / run / swim (or a given activity id) |
+| `/checkin` | Morning readiness, then today's session (or rest), saved on the Today page |
+| `/session-review` | Coach review of the latest ride / run / swim (or a given activity id), saved on the session's dashboard page |
 | `/week-review` | Weekly review and a day-by-day plan for next week |
 | `/training-plan` | Build a block toward an event and save it |
 
@@ -68,15 +68,38 @@ cp deploy/pi/coach-*@.* ~/.config/systemd/user/ && systemctl --user daemon-reloa
 systemctl --user enable --now coach-web@<folder> coach-sync@<folder>.timer coach-update@<folder>.timer coach-remote@<folder>
 ```
 
+`coach-update` installs changed units by itself (copy + `daemon-reload`, restarts the sync timer).
+
 | Unit | What it does |
 |---|---|
-| `coach-sync@.timer` | Hourly sync (skips if a sync of that athlete is already running) |
-| `coach-web@.service` | Dashboard + Settings on the Tailscale address only (no auth: Tailscale is the boundary) |
+| `coach-sync@.timer` | Sync every 10 min (skips if a sync of that athlete is already running) |
+| `coach-auto@.service` | After each sync: unattended check-in / session reviews, if `COACH_AUTO` is set (see below) |
+| `coach-web@.service` | Dashboard + Settings on the Tailscale address only (no auth: Tailscale is the boundary); applies accepted suggestions |
 | `coach-remote@.service` | Claude Code Remote Control for that checkout (claude.ai / the Claude app) |
 | `coach-update@.timer` | Every 5 min: `git pull`, reinstall if `pyproject.toml` changed, restart the dashboard |
 
 An athlete with their own Claude account logs in once with their config dir:
 `cd ~/<folder> && CLAUDE_CONFIG_DIR=~/.claude-<name> claude` → `/login`, trust the folder, `/exit`.
+
+### Automatic check-in and session reviews
+
+With `COACH_AUTO=checkin,review` in `coach.env`, every sync is followed by `coach auto`, which starts a headless
+Claude Code run (`claude -p`) in the checkout when something is due:
+
+- **Check-in** (`/auto-checkin`): once a day from 04:30, as soon as last night's sleep and HRV are synced (at 10:30
+  with whatever is there; skipped if you already ran `/checkin` today or after 13:00).
+- **Session review** (`/auto-session-review <id>`): for each session from today or yesterday whose FIT file has
+  been analyzed. Sessions already there when the automation first runs are not reviewed.
+
+The auto skills know nobody answers: they never ask and write open questions into the coach note. Like the chat
+versions, they never change the plan: each change is a **suggestion** on the Today page (and on the session's page)
+with *Accept* / *Dismiss*. *Accept* starts a headless `/apply-suggestion` run from the dashboard service that makes
+the change and, with COROS, updates the workout on the watch; the card shows the result. Thresholds, profile, race
+and nutrition plans stay chat-only (enforced with `--allowedTools` / `--disallowedTools`). Check-ins show on the Today page and reviews on the
+session's page (each reply also in `data/auto/`), the coach note shows the verdict on the dashboard, and a later chat (Remote Control) reads the
+report when you ask about it. A run that fails is retried once. Each run uses the athlete's Claude plan
+(`CLAUDE_CONFIG_DIR`). Test with `coach auto --dry-run`, or force one kind with `coach auto --checkin` /
+`--review`. Logs: `journalctl --user -u coach-auto@<folder>`.
 
 ## Notes
 

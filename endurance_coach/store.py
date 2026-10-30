@@ -37,6 +37,33 @@ CREATE TABLE IF NOT EXISTS daily (
     PRIMARY KEY (source, date)
 );
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS session_reviews (         -- the coach's review of one activity, shown on its session page
+    activity_id INTEGER PRIMARY KEY,
+    text TEXT NOT NULL,
+    origin TEXT NOT NULL DEFAULT 'chat',     -- chat | auto
+    updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS checkins (                -- the day's check-in as written, shown on the Today page
+    date TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    origin TEXT NOT NULL DEFAULT 'chat',     -- chat | auto
+    updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS suggestions (             -- plan changes a check-in / review suggests; accepted on the dashboard
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,                        -- the planned day it changes
+    slot INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    change_json TEXT,                          -- proposed adjust_planned_session fields
+    source TEXT NOT NULL,                      -- checkin | session-review
+    origin TEXT NOT NULL DEFAULT 'chat',       -- chat | auto
+    activity_id INTEGER,
+    status TEXT NOT NULL DEFAULT 'open',       -- open | accepted | applying | applied | dismissed | superseded | failed
+    result TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS body_log (                -- weigh-ins logged by hand; kept when the source changes
     date TEXT PRIMARY KEY,
     weight_kg REAL NOT NULL,
@@ -212,6 +239,33 @@ def activity(activity_id: int) -> dict[str, Any] | None:
     return _activity_dict(row) if row else None
 
 
+def session_review(activity_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT text, origin, updated_at FROM session_reviews WHERE activity_id = ?",
+                           (activity_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def put_session_review(activity_id: int, text: str, origin: str = "chat") -> dict[str, Any]:
+    with connect() as conn:
+        conn.execute("INSERT OR REPLACE INTO session_reviews(activity_id, text, origin, updated_at) VALUES (?, ?, ?, ?)",
+                     (activity_id, text.strip(), origin, _now()))
+    return {"activity_id": activity_id, "origin": origin, "saved": True}
+
+
+def checkin(day: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT date, text, origin, updated_at FROM checkins WHERE date = ?", (day,)).fetchone()
+    return dict(row) if row else None
+
+
+def put_checkin(day: str, text: str, origin: str = "chat") -> dict[str, Any]:
+    with connect() as conn:
+        conn.execute("INSERT OR REPLACE INTO checkins(date, text, origin, updated_at) VALUES (?, ?, ?, ?)",
+                     (day, text.strip(), origin, _now()))
+    return {"date": day, "origin": origin, "saved": True}
+
+
 def latest_activity(sport: str | None = None) -> dict[str, Any] | None:
     """Latest training activity (of one sport if given)."""
     q = "SELECT * FROM activities WHERE sport NOT IN ('mobility', 'walk')" + (" AND sport = ?" if sport else "")
@@ -255,6 +309,7 @@ def clear_cache(provider: str) -> None:
     """Drop everything synced from the previous data source. The plan, coach note and profile stay."""
     with connect() as conn:
         conn.execute("DELETE FROM activities")
+        conn.execute("DELETE FROM session_reviews")
         conn.execute("DELETE FROM daily")
         conn.execute(f"DELETE FROM meta WHERE key NOT IN ({','.join('?' * len(_KEEP_META))})", _KEEP_META)
         conn.execute("UPDATE planned_sessions SET coros_ref = NULL")

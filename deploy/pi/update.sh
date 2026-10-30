@@ -1,6 +1,7 @@
 #!/bin/sh
-# Pull the latest code from GitHub. Reinstall when dependencies changed and restart the dashboard when anything
-# changed. Claude sessions pick up new code, skills and CLAUDE.md on their own (the MCP server starts per session).
+# Pull the latest code from GitHub. Reinstall when dependencies changed, install changed systemd units and restart
+# the dashboard when anything changed. Claude sessions pick up new code, skills and CLAUDE.md on their own (the MCP
+# server starts per session).
 # $1: the systemd instance (the checkout's folder name), for the coach-web@ unit to restart.
 set -eu
 cd "$(dirname "$0")/../.."
@@ -12,5 +13,10 @@ after=$(git rev-parse HEAD)
 echo "updated ${before%"${before#???????}"} -> ${after%"${after#???????}"}"
 if git diff --name-only "$before" "$after" | grep -qx pyproject.toml; then
   .venv/bin/pip install --quiet -e .
+fi
+if git diff --name-only "$before" "$after" | grep -q '^deploy/pi/coach-.*@\.'; then
+  cp deploy/pi/coach-*@.* ~/.config/systemd/user/
+  systemctl --user daemon-reload
+  systemctl --user restart "coach-sync@$instance.timer"
 fi
 systemctl --user restart "coach-web@$instance.service"

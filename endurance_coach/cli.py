@@ -1,4 +1,4 @@
-"""Command line: setup, login, set-key, sync, probe, status, serve, web."""
+"""Command line: setup, login, set-key, sync, auto, probe, status, serve, web."""
 
 from __future__ import annotations
 
@@ -49,9 +49,16 @@ def _sync(args: argparse.Namespace) -> None:
     try:
         print(json.dumps(sync.sync_all(args.days, args.max_fit), indent=2))
     except sync.SyncBusy as exc:
-        print(exc)  # the hourly timer just skips this run
+        print(exc)  # the sync timer just skips this run
     except sync.NotConnected as exc:
         sys.exit(str(exc))
+
+
+def _auto(args: argparse.Namespace) -> None:
+    from . import auto
+
+    only = {k for k in ("checkin", "review") if getattr(args, k)} or None
+    print(json.dumps(auto.run(only, args.dry_run), indent=2, default=str))
 
 
 def _probe_coros() -> None:
@@ -170,6 +177,11 @@ def main() -> None:
     p.add_argument("--max-fit", type=int, default=None,
                    help="max FIT files to download this run (default: Garmin 100, COROS 40 of its 50/day)")
     p.set_defaults(fn=_sync)
+    p = sub.add_parser("auto", help="unattended check-in / session reviews via headless Claude (after each sync)")
+    p.add_argument("--checkin", action="store_true", help="only the check-in (overrides COACH_AUTO)")
+    p.add_argument("--review", action="store_true", help="only session reviews (overrides COACH_AUTO)")
+    p.add_argument("--dry-run", action="store_true", help="show what is due without starting Claude")
+    p.set_defaults(fn=_auto)
     sub.add_parser("probe", help="dump raw source responses to data/samples").set_defaults(fn=_probe)
     sub.add_parser("status", help="show settings, login, cache contents and current load").set_defaults(fn=_status)
     sub.add_parser("serve", help="run the MCP server on stdio").set_defaults(fn=_serve)

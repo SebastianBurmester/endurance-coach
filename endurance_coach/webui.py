@@ -1,6 +1,6 @@
 """Tiny web dashboard with a Settings tab (stdlib only). Bind it to the Tailscale address; there is no auth.
 
-Writes (settings, keys, logins, sync) only accept JSON POSTs from the page itself: a cross-site form can't send
+Writes (settings, keys, logins, sync, accepting a suggested plan change) only accept JSON POSTs from the page itself: a cross-site form can't send
 application/json without a CORS preflight (never answered here), and the Origin header must match the host.
 """
 
@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from . import dashboard, nutrition, settings, store, sync, views
+from . import dashboard, nutrition, settings, store, suggestions, sync, views
 from .util import js_safe
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,6 +82,8 @@ def _post(path: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"saved": nutrition.log_weight(body.get("weight_kg"), body.get("date"), body.get("note"))}
     if path == "/api/weight/delete":
         return nutrition.delete_weight(str(body.get("date") or ""))
+    if path == "/api/suggestion":
+        return suggestions.act(int(body.get("id") or 0), str(body.get("action") or ""))
     if path == "/api/settings/focus":
         settings.save(focus=body.get("focus"))
     elif path == "/api/settings/source":
@@ -172,5 +174,6 @@ class _Handler(BaseHTTPRequestHandler):
 
 def serve(host: str, port: int) -> None:
     httpd = ThreadingHTTPServer((host, port), _Handler)
+    suggestions.resume()
     print(f"Dashboard on http://{host}:{port}", flush=True)
     httpd.serve_forever()

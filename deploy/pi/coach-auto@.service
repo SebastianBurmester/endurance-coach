@@ -1,0 +1,14 @@
+[Unit]
+Description=Coach %i: unattended morning check-in and session reviews (headless Claude Code)
+
+[Service]
+# Started by coach-sync@%i after each sync. Does nothing unless coach.env sets COACH_AUTO; CLAUDE_CONFIG_DIR from
+# coach.env makes the runs use that athlete's Claude login. Runs while the next syncs go on; a run still busy when
+# the next sync finishes is not started twice.
+Type=oneshot
+WorkingDirectory=/home/pi/%i
+EnvironmentFile=/home/pi/%i/coach.env
+Environment=PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/pi/%i/.venv/bin/coach auto
+Nice=10
+TimeoutStartSec=1h

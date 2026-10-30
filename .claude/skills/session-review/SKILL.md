@@ -33,8 +33,15 @@ description: Coach-style review of a ride, run, swim or brick (default the lates
 4. Comment on cadence / coasting and HR vs output, comparing EF with similar recent sessions via `list_activities`
    when useful.
 5. If the session makes upcoming planned sessions unwise (much harder than planned, very high decoupling, signs of
-   illness or pain), propose the change and, once agreed, save it with `adjust_planned_session`.
-6. Post the verdict and the takeaway to the dashboard with `set_coach_note` (kind `session-review`), 1-3 short lines.
+   illness, pain or under-fueling), suggest the change with `suggest_plan_change` (source `session-review`, the
+   activity id, `changes` = the new session's fields; one per session changed), at most the next 3 days. The athlete
+   accepts it on the dashboard or by saying yes in this chat; then apply it with `adjust_planned_session` and
+   `resolve_suggestion(id, "applied", …)`. No suggestion when the numbers rest on estimates or look mis-recorded:
+   ask instead.
+6. Save the review on the session with `save_session_review` (activity id, the full review exactly as you reply it
+   below, markdown table and bullets included): it shows on the session's dashboard page. If `analyze_session`
+   returned a `coach_review`, this one replaces it, so carry over what still holds. Then post the verdict and the
+   takeaway to the dashboard with `set_coach_note` (kind `session-review`), 1-3 short lines.
 7. Format: a 1-line verdict (incl. "as planned" / "off plan"), a compact key-numbers line (duration, distance, NP /
    W/kg or pace, avg HR, TSS + source, IF, decoupling), 2-4 bullets on what went well and what to change, and
    1 concrete takeaway for the next similar session.

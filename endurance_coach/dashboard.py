@@ -7,7 +7,7 @@ import time
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from . import athlete, coach, health, nutrition, plan, settings, sleep, store
+from . import athlete, coach, health, nutrition, plan, settings, sleep, store, suggestions
 from .config import NON_TRAINING_SPORTS
 from .util import js_safe
 
@@ -129,6 +129,8 @@ def build() -> dict[str, Any]:
                     "wkg": round(th["ftp"] / th["weight_kg"], 2) if th["ftp"] and th["weight_kg"] else None},
         "events": events,
         "note": _note(),
+        "checkin": store.checkin(today.isoformat()),
+        "suggestions": suggestions.listing(None, today),
         "readiness": {k: readiness.get(k) for k in
                       ("status", "flags", "positives", "hrv", "resting_hr", "sleep", "recovery", "cycle",
                        "data_present")},

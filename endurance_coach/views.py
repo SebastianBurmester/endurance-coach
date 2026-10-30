@@ -507,7 +507,7 @@ def session_detail(activity_id: int) -> dict[str, Any]:
     key = (activity_id, a.get("updated_at"))
     if key in _SESSION_CACHE:
         _SESSION_CACHE.move_to_end(key)
-        return _SESSION_CACHE[key]
+        return {**_SESSION_CACHE[key], "coach_review": store.session_review(activity_id)}
     stream = coach.load_stream(activity_id) if a["fit_status"] == "ok" else None
     out = coach.analyze_session(activity_id, remote_laps=False, stream=stream)
     m = a["metrics"]
@@ -547,7 +547,7 @@ def session_detail(activity_id: int) -> dict[str, Any]:
     _SESSION_CACHE[key] = out
     while len(_SESSION_CACHE) > _SESSION_CACHE_SIZE:
         _SESSION_CACHE.popitem(last=False)
-    return out
+    return {**out, "coach_review": store.session_review(activity_id)}
 
 
 # ---------------------------------------------------------------- races

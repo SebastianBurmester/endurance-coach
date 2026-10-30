@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from . import athlete, coach, dashboard, nutrition, plan, settings, sleep, sync, views
+from . import athlete, coach, dashboard, nutrition, plan, settings, sleep, store, suggestions, sync, views
 from .util import to_date
 
 logging.basicConfig(level=logging.WARNING)
@@ -70,9 +70,23 @@ def daily_readiness(day: str = "today") -> dict[str, Any]:
     the watch's recovery gauge (COROS recovery % or Garmin Body Battery) and stress, plus training load
     (CTL/ATL/TSB) and yesterday's sessions. Returns status green/amber/red with the flags behind it. With COROS,
     `cycle` gives the menstrual cycle phase, cycle day and next period if the athlete tracks it (context, not a flag).
+    `checkin` is that day's saved check-in (e.g. this morning's automatic one), if any; `open_suggestions` are plan
+    changes suggested earlier (e.g. by last night's review) that the athlete has not accepted or dismissed yet.
     day is YYYY-MM-DD or 'today'."""
     warning = _prefetch()
-    return _wrap(coach.readiness(to_date(day)), warning)
+    result = coach.readiness(to_date(day))
+    saved = store.checkin(to_date(day).isoformat())
+    if saved:
+        result["checkin"] = saved
+    result["open_suggestions"] = suggestions.listing("open")
+    return _wrap(result, warning)
+
+
+@mcp.tool()
+def save_checkin(text: str, origin: str = "chat", day: str = "today") -> dict[str, Any]:
+    """Save the day's check-in (the reply as written, markdown tables kept) for the dashboard's Today page.
+    Replaces an earlier check-in of that day. origin: chat (a check-in in conversation) | auto (an unattended run)."""
+    return store.put_checkin(to_date(day).isoformat(), text, "auto" if origin == "auto" else "chat")
 
 
 @mcp.tool()
@@ -95,9 +109,24 @@ def list_activities(days: int = 14, sport: str | None = None) -> dict[str, Any]:
 def analyze_session(activity_id: int | None = None, sport: str | None = None) -> dict[str, Any]:
     """Deep analysis of one session (default: the latest, optionally of one sport, e.g. 'bike' for the latest
     ride): TSS/IF, NP/VI/EF or pace/NGP, aerobic decoupling, time in HR and power zones, laps, best efforts, the
-    watch's TE/load/RPE/note, the planned session for that day and form going in."""
+    watch's TE/load/RPE/note, the planned session for that day and form going in, and the coach's earlier
+    review of it if one was saved (`coach_review`)."""
     warning = _prefetch()
-    return _wrap(coach.analyze_session(activity_id, sport), warning)
+    result = coach.analyze_session(activity_id, sport)
+    review = store.session_review(result["overview"]["id"]) if result.get("overview", {}).get("id") else None
+    if review:
+        result["coach_review"] = review
+    return _wrap(result, warning)
+
+
+@mcp.tool()
+def save_session_review(activity_id: int, review: str, origin: str = "chat") -> dict[str, Any]:
+    """Save the full session review (the reply as written, markdown tables and bullets kept) on the activity, so it
+    shows on that session's dashboard page. Replaces an earlier review of the same activity.
+    origin: chat (a review in conversation) | auto (an unattended run)."""
+    if store.activity(activity_id) is None:
+        return {"error": f"Activity {activity_id} is not in the cache."}
+    return store.put_session_review(activity_id, review, "auto" if origin == "auto" else "chat")
 
 
 @mcp.tool()
@@ -355,6 +384,35 @@ def adjust_planned_session(
         result["coros_note"] = ("This session is on the COROS calendar: push_session_to_coros again to update it"
                                 + (", or delete it in the COROS app (the API cannot remove workouts)." if skip else "."))
     return result
+
+
+@mcp.tool()
+def suggest_plan_change(date: str, title: str, reason: str, source: str, slot: int = 1,
+                        changes: dict[str, Any] | None = None, origin: str = "chat",
+                        activity_id: int | None = None) -> dict[str, Any]:
+    """Suggest a change to one planned session instead of making it: the athlete sees it on the dashboard with
+    Accept / Dismiss, and an accepted one is applied by a separate run. One suggestion per session changed (a moved
+    session = one for the day it leaves, one for the day it goes to). An open suggestion for the same day and slot
+    is replaced. title: one line, e.g. "Thu: VO2 5×4 min → 60 min Z2". reason: the numbers behind it.
+    changes: the proposed adjust_planned_session fields (skip, sport, title, type, duration_min, tss, targets,
+    structure, purpose). source: checkin | session-review. origin: chat | auto."""
+    return suggestions.add(date, title, reason, source, slot, changes, origin, activity_id)
+
+
+@mcp.tool()
+def list_suggestions(status: str = "open", suggestion_id: int | None = None) -> dict[str, Any]:
+    """Suggested plan changes by status (open | accepted | applying | applied | dismissed | superseded | failed),
+    or one by id."""
+    if suggestion_id is not None:
+        return {"suggestion": suggestions.get(suggestion_id)}
+    return {"suggestions": suggestions.listing(status)}
+
+
+@mcp.tool()
+def resolve_suggestion(suggestion_id: int, status: str, result: str | None = None) -> dict[str, Any]:
+    """Close a suggestion: applied (after making the change; result = what changed, one line), superseded or
+    dismissed (no longer fits, e.g. a newer check-in decides otherwise; result = why), failed (could not apply)."""
+    return suggestions.resolve(suggestion_id, status, result)
 
 
 @mcp.tool()

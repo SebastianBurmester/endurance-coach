@@ -22,7 +22,7 @@ class NotConnected(RuntimeError):
 
 
 class SyncBusy(RuntimeError):
-    """Another sync of this athlete (hourly timer, dashboard, Claude) is still running."""
+    """Another sync of this athlete (sync timer, dashboard, Claude) is still running."""
 
 
 @contextmanager

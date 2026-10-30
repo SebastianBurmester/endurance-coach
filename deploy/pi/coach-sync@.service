@@ -1,6 +1,8 @@
 [Unit]
 Description=Coach %i: sync activities, FIT files and health data from the connected source
 After=network-online.target
+# After every successful sync: unattended check-in / session reviews, if COACH_AUTO is set in coach.env.
+OnSuccess=coach-auto@%i.service
 
 [Service]
 Type=oneshot

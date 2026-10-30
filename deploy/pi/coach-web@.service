@@ -6,6 +6,8 @@ Wants=network-online.target
 [Service]
 WorkingDirectory=/home/pi/%i
 EnvironmentFile=/home/pi/%i/coach.env
+# Accepted plan suggestions are applied by a headless claude run started from the dashboard.
+Environment=PATH=/home/pi/.local/bin:/usr/local/bin:/usr/bin:/bin
 # Bind to the Tailscale IP only; refuse to start (and retry) until Tailscale is up rather than listen on all interfaces.
 ExecStart=/bin/sh -c 'ip=$(tailscale ip -4 2>/dev/null | head -n1); [ -n "$ip" ] || { echo "tailscale not up yet" >&2; exit 1; }; exec /home/pi/%i/.venv/bin/coach web --host "$ip" --port ${COACH_PORT}'
 Restart=always

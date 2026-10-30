@@ -318,6 +318,10 @@ a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
 .steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-2); }
 .steps li { margin: 3px 0; }
 .msg { margin-top: 8px; font-size: 14px; }
+.sug { padding: 10px 0; border-top: 1px solid var(--grid); }
+.sug:first-of-type { border-top: 0; }
+.sug .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.sug.done { opacity: .65; }
 .fuel-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--grid); font-size: 14px; }
 .fuel-line a { margin-left: auto; }
 .fuel-table td { vertical-align: top; }
@@ -785,6 +789,46 @@ function todayCard(d) {
     ${fuelTodayLine(d.fuel_today)}</section>`;
 }
 
+// Plan changes a check-in or review suggested: Accept starts a Claude run that applies it, Dismiss drops it.
+const SUG_STATE = { accepted: "Accepted · an agent is updating the plan…", applying: "Applying · an agent is updating the plan…",
+  applied: "✓ Applied", dismissed: "Dismissed", superseded: "Replaced", failed: "Could not apply" };
+function suggestionItems(list) {
+  return list.map((s) => {
+    const meta = `${s.source === "checkin" ? "check-in" : "session review"}${s.origin === "auto" ? " · automatic" : ""}${s.activity_id && s.source !== "checkin" ? ` · <a href="${sessionHref(s.activity_id)}">session</a>` : ""}`;
+    const buttons = s.status === "open" ? `<button class="btn primary" data-sug="${s.id}" data-sug-act="accept">Accept</button><button class="btn" data-sug="${s.id}" data-sug-act="dismiss">Dismiss</button>`
+      : s.status === "failed" ? `<button class="btn" data-sug="${s.id}" data-sug-act="retry">Try again</button><button class="btn link" data-sug="${s.id}" data-sug-act="dismiss">Dismiss</button>` : "";
+    const state = s.status === "open" ? "" : `<div class="${s.status === "failed" ? "err" : "muted"}">${esc(SUG_STATE[s.status] || s.status)}${s.result && !["accepted", "applying"].includes(s.status) ? `: ${esc(s.result)}` : ""}</div>`;
+    return `<div class="sug${["applied", "dismissed", "superseded"].includes(s.status) ? " done" : ""}"><div class="title"><a href="#plan/day/${s.date}">${esc(wday(s.date))} ${esc(dshort(s.date))}</a> · ${esc(s.title)}</div>
+      <div class="sub">${esc(s.reason)}</div><div class="muted">${meta}</div>${state}${buttons ? `<div class="actions">${buttons}</div>` : ""}</div>`;
+  }).join("");
+}
+
+function suggestionsCard(list, heading = "Suggested plan changes") {
+  if (!list.length) return "";
+  const open = list.filter((s) => s.status === "open").length;
+  return `<section class="card"><h2>${esc(heading)}${open ? ` <span class="muted">${open} waiting for you · nothing changes until you accept</span>` : ""}</h2>${suggestionItems(list)}<div class="msg" id="sug-msg"></div></section>`;
+}
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-sug-act]");
+  if (!b) return;
+  document.querySelectorAll("[data-sug-act]").forEach((x) => { x.disabled = true; });
+  try {
+    await api("/api/suggestion", { id: Number(b.dataset.sug), action: b.dataset.sugAct });
+    await load();
+  } catch (err) {
+    const m = document.getElementById("sug-msg");
+    if (m) { m.textContent = err.message; m.className = "msg err"; }
+    document.querySelectorAll("[data-sug-act]").forEach((x) => { x.disabled = false; });
+  }
+});
+
+function checkinCard(d) {
+  const c = d.checkin;
+  if (!c) return "";
+  return `<section class="card"><h2>Today's check-in <span class="muted">${c.origin === "auto" ? "automatic" : "from a chat"} · ${esc(String(c.updated_at || "").slice(11, 16))}</span></h2>${richText(c.text)}</section>`;
+}
+
 function comingUpCard(d) {
   const next = [1, 2, 3].map((k) => dayOf(addDays(todayKey(), k))).filter(Boolean);
   const rows = next.map((x) => `<a class="dayrow rowlink" href="#plan/day/${x.date}"><span class="when"><b>${wday(x.date)}</b>${esc(dshort(x.date))}</span>
@@ -838,6 +882,8 @@ function viewToday(d) {
     series: [{ key: "ctl", label: "Fitness (CTL)", color: "var(--series-1)" }, { key: "atl", label: "Fatigue (ATL)", color: "var(--series-2)" }],
     tipRows: [["Fitness", "ctl", "var(--series-1)"], ["Fatigue", "atl", "var(--series-2)"], ["Form", "tsb"], ["TSS", "tss"]] }));
   return `${sourceBanner(d)}<div class="grid two">${todayCard(d)}${comingUpCard(d)}</div>
+    ${suggestionsCard(d.suggestions || [])}
+    ${checkinCard(d)}
     <div class="grid two"><section class="card"><h2>Health · last 30 days <a href="#health">Trends ›</a></h2>${healthTiles(d, "spk-t")}</section>
     <section class="card"><h2>Training load <a href="#load">Details ›</a></h2>${loadStats(d)}
       <div class="legend"><span class="key"><span class="line" style="background:var(--series-1)"></span>Fitness (CTL)</span><span class="key"><span class="line" style="background:var(--series-2)"></span>Fatigue (ATL)</span></div>
@@ -1772,6 +1818,8 @@ function viewSession(d, id) {
       ${m.best_efforts.map((b) => `<tr><td>${esc(b.duration)}</td><td class="num">${fmt(b.watts)}</td><td class="num">${has(b.w_kg) ? fmt(b.w_kg, 2) : "–"}</td><td class="num">${fmt(b.prior_90d_best)}</td><td>${b.new_90d_best ? '<span class="badge"><span class="dot" style="background:var(--good)"></span>✓ new 90-day best</span>' : ""}</td></tr>`).join("")}</tbody></table></div></section>` : "";
     const form = x.form_going_in || {};
     const day = x.date, inPlan = !!dayOf(day);
+    const rv = x.coach_review;
+    const review = rv ? `<section class="card"><h2>Coach review <span class="muted">${rv.origin === "auto" ? "automatic" : "from a chat"} · ${esc(String(rv.updated_at || "").slice(0, 16).replace("T", " "))}</span></h2>${richText(rv.text)}</section>` : "";
     const garmin = DATA.app.provider === "garmin" ? ` · <a href="https://connect.garmin.com/modern/activity/${encodeURIComponent(o.id)}" target="_blank" rel="noopener">Garmin Connect ↗</a>` : "";
     return `${crumbs([[cycling() ? "Rides" : "Sessions", "sessions"], [o.name || o.type || "Session"]])}
       ${pager(nb.prev && ["Previous", `session/${nb.prev}`], nb.next && ["Next", `session/${nb.next}`])}
@@ -1781,6 +1829,7 @@ function viewSession(d, id) {
         ${watchBits ? `<div class="muted">${esc(watchBits)}</div>` : ""}${o.note ? `<div class="note">“${esc(o.note)}”</div>` : ""}
         ${x.note ? `<div class="muted" style="margin-top:6px">${esc(x.note)}</div>` : ""}
         ${(nb.same_day || []).length ? `<div class="muted" style="margin-top:6px">Same day: ${nb.same_day.map((s) => `<a href="${sessionHref(s.id)}">${esc(SPORT[s.sport] || s.sport)} · ${esc(s.name || "")}</a>`).join(" · ")}</div>` : ""}</section>
+      ${review}${suggestionsCard((DATA.suggestions || []).filter((s) => s.activity_id === o.id && s.source === "session-review"), "Suggested from this review")}
       <div class="grid two"><section class="card"><h2>Planned that day</h2>${plannedHtml}</section>
         <section class="card"><h2>Form going in</h2><div class="stats">${statBox(fmt(form.ctl), "Fitness (CTL)")}${statBox(fmt(form.atl), "Fatigue (ATL)")}${statBox(fmt(form.tsb), "Form (TSB)")}</div>
           ${m.decoupling?.note ? `<div class="muted">${esc(m.decoupling.note)}</div>` : ""}</section></div>
@@ -2157,12 +2206,15 @@ function render() {
   document.getElementById("meta").textContent = `${d.app.provider ? watch() + " sync " + synced : "No data source"} · page ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
+let sugTimer = null;
 async function load() {
   try {
     const res = await fetch("/api/dashboard", { cache: "no-store" });
     if (!res.ok) throw new Error((await res.json()).error || res.status);
     DATA = await res.json();
     Object.values(VIEWS).forEach((v) => { v.stale = true; });
+    clearTimeout(sugTimer);
+    if ((DATA.suggestions || []).some((s) => ["accepted", "applying"].includes(s.status))) sugTimer = setTimeout(load, 5000);
     // Don't wipe a half-typed key, login address or weigh-in.
     if (["settings", "nutrition"].includes(route()[0]) && document.activeElement?.tagName === "INPUT") return;
     render();
