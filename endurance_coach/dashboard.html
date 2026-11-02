@@ -1029,15 +1029,33 @@ function sessionDetail(s) {
   </section>`;
 }
 
-function actualCard(x) {
-  if (!x.actual.length) return x.is_past && activeSessions(x).length ? `<section class="card"><h2>What you did</h2><div class="empty">Nothing recorded.</div>${x.status ? `<div style="margin-top:6px">${badge(x.status)}</div>` : ""}</section>` : "";
-  const ss = activeSessions(x);
+const rideRow = (a) => `<div class="ride"><div class="row"><b>${sportTag(a.sport)}<a href="#session/${a.id}">${esc(a.name)}</a></b></div>
+    <div class="sub">${esc([a.type, hm(a.minutes), a.km ? `${fmt(a.km, a.sport === "swim" ? 2 : 1)} km` : "", a.tss ? `TSS ${fmt(a.tss)}` : "", a.if ? `IF ${fmt(a.if, 2)}` : "", a.avg_hr ? `HR ${fmt(a.avg_hr)}` : ""].filter(Boolean).join(" · "))}</div></div>`;
+
+// Planned vs done meters for a set of planned sessions and the activities that count toward them.
+function doneMeters(ss, acts) {
   const pMin = ss.reduce((a, s) => a + (s.duration_min || 0), 0), pTss = ss.reduce((a, s) => a + (sessTss(s) || 0), 0);
-  const aMin = x.actual.reduce((a, r) => a + (r.minutes || 0), 0), aTss = x.actual.reduce((a, r) => a + (r.tss || 0), 0);
-  const rides = x.actual.map((a) => `<div class="ride"><div class="row"><b>${sportTag(a.sport)}<a href="#session/${a.id}">${esc(a.name)}</a></b></div>
-    <div class="sub">${esc([a.type, hm(a.minutes), a.km ? `${fmt(a.km, a.sport === "swim" ? 2 : 1)} km` : "", a.tss ? `TSS ${fmt(a.tss)}` : "", a.if ? `IF ${fmt(a.if, 2)}` : "", a.avg_hr ? `HR ${fmt(a.avg_hr)}` : ""].filter(Boolean).join(" · "))}</div></div>`).join("");
+  const aMin = acts.reduce((a, r) => a + (r.minutes || 0), 0), aTss = acts.reduce((a, r) => a + (r.tss || 0), 0);
+  return meter("Duration (min)", Math.round(aMin), Math.round(pMin), "") + meter("TSS", Math.round(aTss), Math.round(pTss), "");
+}
+
+function actualCard(x) {
+  const ss = activeSessions(x);
+  // Several sessions planned: one section per session with the activities matched to it, then anything extra.
+  if (ss.length > 1 && (x.actual.length || x.is_past)) {
+    const parts = ss.map((s) => {
+      const acts = x.actual.filter((a) => a.slot === s.slot);
+      const res = s.result && s.result !== "pending" ? badge(s.result) : "";
+      return `<div class="section-label">${sportTag(s.sport)}${esc(s.title)} ${res}</div>
+        ${acts.length ? doneMeters([s], acts) + acts.map(rideRow).join("") : `<div class="empty">${x.is_past ? "Nothing recorded." : "Not done yet."}</div>`}`;
+    }).join("");
+    const extra = x.actual.filter((a) => !ss.some((s) => s.slot === a.slot));
+    return `<section class="card"><h2>What you did ${x.status && x.status !== "pending" ? badge(x.status) : ""}</h2>${parts}
+      ${extra.length ? `<div class="section-label">Not in the plan</div>${extra.map(rideRow).join("")}` : ""}</section>`;
+  }
+  if (!x.actual.length) return x.is_past && ss.length ? `<section class="card"><h2>What you did</h2><div class="empty">Nothing recorded.</div>${x.status ? `<div style="margin-top:6px">${badge(x.status)}</div>` : ""}</section>` : "";
   return `<section class="card"><h2>What you did ${x.status ? badge(x.status) : ""}</h2>
-    ${ss.length ? meter("Duration (min)", Math.round(aMin), Math.round(pMin), "") + meter("TSS", Math.round(aTss), Math.round(pTss), "") : ""}${rides}</section>`;
+    ${ss.length ? doneMeters(ss, x.actual) : ""}${x.actual.map(rideRow).join("")}</section>`;
 }
 
 function zonesCard() {

@@ -64,6 +64,10 @@ def _plan(today: date) -> dict[str, Any]:
             day = d + timedelta(days=i)
             key = day.isoformat()
             c = comp.get(key, {})
+            results = {p["slot"]: p["result"] for p in c.get("planned", [])}
+            for s in planned.get(key, []):
+                if s["slot"] in results:
+                    s["result"] = results[s["slot"]]
             days.append({
                 "date": key,
                 "is_today": day == today,

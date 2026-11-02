@@ -238,6 +238,44 @@ def _sports_missing(planned: list[dict[str, Any]], actual: list[dict[str, Any]])
     return missing
 
 
+def _allowed(s: dict[str, Any]) -> set[str] | None:
+    sport = s.get("sport") or "bike"
+    return _MATCHES.get(sport, {sport})
+
+
+def _assign_slots(planned: list[dict[str, Any]], actual: list[dict[str, Any]]) -> None:
+    """Give each activity of a day the slot of the planned session it most likely was ('slot' stays unset for
+    an activity no planned session asked for). A sport-specific session wins over an 'anything counts' one;
+    among several fitting sessions (two rides, or a brick and a run) the one with the fewest activities so far
+    takes it, so a morning and an evening ride land in slots 1 and 2."""
+    active = [s for s in planned if s.get("status") != "skipped"]
+    count = {s["slot"]: 0 for s in active}
+    for a in actual:  # chronological
+        fits = [s for s in active if (_allowed(s) or set()) & {a["sport"]}] or \
+               [s for s in active if _allowed(s) is None]
+        if fits:
+            slot = min(fits, key=lambda s: (count[s["slot"]], s["slot"]))["slot"]
+            a["slot"] = slot
+            count[slot] += 1
+
+
+def _session_result(s: dict[str, Any], acts: list[dict[str, Any]], is_today: bool) -> str:
+    """done / partial / over / missed / pending / skipped for one planned session, like the day status."""
+    if s.get("status") == "skipped":
+        return "skipped"
+    if not acts:
+        return "pending" if is_today else "missed"
+    p_tss, p_min = estimated_tss(s) or 0, s.get("duration_min") or 0
+    a_tss = sum(num(x.get("tss")) or 0 for x in acts)
+    a_min = sum(x.get("minutes") or 0 for x in acts)
+    ratio = a_tss / p_tss if p_tss and a_tss else (a_min / p_min if p_min else 1.0)
+    result = "done" if 0.8 <= ratio <= 1.2 else "partial" if ratio < 0.8 else "over"
+    best_if = max((num(x.get("if")) or 0 for x in acts), default=0)
+    if s.get("type") in _INTENSITY_TYPES and best_if and best_if < 0.75:
+        result += " (intensity missing: IF {:.2f})".format(best_if)
+    return result
+
+
 def compliance(start: date, end: date) -> dict[str, Any]:
     today = date.today()
     planned_by_day: dict[str, list[dict]] = {}
@@ -281,9 +319,13 @@ def compliance(start: date, end: date) -> dict[str, Any]:
                 status += " (intensity missing: IF {:.2f})".format(best_if)
         if status != "pending":
             counts[status.split(" ")[0]] += 1
+        _assign_slots(planned, actual)
         days.append({"date": key, "status": status,
-                     "planned": [{k: s[k] for k in ("sport", "title", "type", "duration_min", "tss", "tss_est", "targets",
-                                                   "status") if k in s} for s in planned],
+                     "planned": [{k: s[k] for k in ("slot", "sport", "title", "type", "duration_min", "tss", "tss_est",
+                                                   "targets", "status") if k in s}
+                                 | {"result": _session_result(s, [a for a in actual if a.get("slot") == s["slot"]],
+                                                              d == today)}
+                                 for s in planned],
                      "actual": actual})
 
     due = counts["done"] + counts["partial"] + counts["over"] + counts["missed"]
