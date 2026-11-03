@@ -10,7 +10,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from . import athlete, coach, dashboard, nutrition, plan, settings, sleep, store, suggestions, sync, views
+from . import athlete, chats, coach, dashboard, nutrition, plan, settings, sleep, store, suggestions, sync, views
 from .util import to_date
 
 logging.basicConfig(level=logging.WARNING)
@@ -413,6 +413,19 @@ def resolve_suggestion(suggestion_id: int, status: str, result: str | None = Non
     """Close a suggestion: applied (after making the change; result = what changed, one line), superseded or
     dismissed (no longer fits, e.g. a newer check-in decides otherwise; result = why), failed (could not apply)."""
     return suggestions.resolve(suggestion_id, status, result)
+
+
+@mcp.tool()
+def ask_athlete(question: str, options: list[str] | None = None, multi: bool = False,
+                source: str | None = None, activity_id: int | None = None) -> dict[str, Any]:
+    """Ask the athlete something they answer on the dashboard: the question shows on the Today page (and on the
+    session's page with activity_id), the options as quick-reply buttons, plus a link to reply in the chat. Use it
+    in unattended runs (check-in, session review) and in the dashboard chat, where AskUserQuestion does not exist; in
+    a terminal or claude.ai conversation just ask in your reply. One question per call, at most 2 per run.
+    options: 2-5 short quick replies in the athlete's language (they can always write something else instead);
+    multi: several options can be picked. source: checkin | session-review | chat (default: this conversation's kind).
+    Never wait for the answer: finish the turn. It arrives as the next message in this conversation."""
+    return chats.ask(question, options, multi, source, activity_id)
 
 
 @mcp.tool()

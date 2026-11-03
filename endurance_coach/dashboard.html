@@ -322,6 +322,29 @@ a.rowlink:hover { background: var(--surface-2); text-decoration: none; }
 .sug:first-of-type { border-top: 0; }
 .sug .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .sug.done { opacity: .65; }
+/* questions from the coach, and the chat */
+.qa { padding: 10px 0; border-top: 1px solid var(--grid); }
+.qa:first-of-type { border-top: 0; }
+.qa .q { font-size: 15px; font-weight: 600; }
+.qopts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.btn[aria-pressed="true"] { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+.badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 999px; background: var(--col-yellow); color: var(--marker-ink); font: 700 12px/18px var(--body); text-align: center; vertical-align: 2px; }
+.chatrow { grid-template-columns: minmax(0, 1fr) auto 14px; gap: 4px 12px; padding: 10px 8px; border-bottom: 1px solid var(--grid); }
+.chatrow:last-child { border-bottom: 0; }
+.chatrow b { font: 600 17px/1.25 var(--display); }
+.chatrow .sub { display: block; color: var(--ink-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chatrow .when { font-size: 12px; color: var(--muted); text-align: right; }
+.thread { display: flex; flex-direction: column; gap: 10px; }
+.bubble { max-width: min(720px, 94%); padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); overflow-wrap: anywhere; }
+.bubble.athlete { align-self: flex-end; background: var(--surface-2); white-space: pre-wrap; font-size: 15px; }
+.bubble.coach { align-self: flex-start; }
+.bubble .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; white-space: normal; }
+.bubble.pending .rich { color: var(--ink-2); }
+.thinking::after { content: "…"; animation: blink 1.2s steps(3, end) infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .thinking::after { animation: none; } }
+.composer { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; padding: 10px 0; background: var(--page); }
+.composer textarea { flex: 1; min-width: 0; min-height: 46px; max-height: 40vh; resize: vertical; font: 15px/1.4 var(--body); padding: 10px 12px; border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); }
 .fuel-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--grid); font-size: 14px; }
 .fuel-line a { margin-left: auto; }
 .fuel-table td { vertical-align: top; }
@@ -389,11 +412,11 @@ td.worse { color: var(--critical); }
 "use strict";
 const TABS = () => [["today", "Today"], ["plan", "Plan"], ["races", "Races"], ["sessions", cycling() ? "Rides" : "Sessions"],
   ["sports", cycling() ? "Bike" : "Sports"], ["progress", "Progress"], ["load", "Load"], ["health", "Health"], ["recovery", "Recovery"],
-  ["sleep", "Sleep"], ["nutrition", "Nutrition"], ["settings", "Settings"]];
+  ["sleep", "Sleep"], ["nutrition", "Nutrition"], ["chat", "Chat"], ["settings", "Settings"]];
 // Sections in the top bar; the pages of the active one show as pills below it.
 const SECTIONS = [["today", "Today", ["today"]], ["planning", "Plan", ["plan", "races"]],
   ["training", "Training", ["sessions", "sports", "progress", "load"]], ["body", "Body", ["health", "recovery", "sleep", "nutrition"]],
-  ["settings", "Settings", ["settings"]]];
+  ["chat", "Chat", ["chat"]], ["settings", "Settings", ["settings"]]];
 const lastPage = {};  // section -> the page last opened in it, so the section link returns there
 const cycling = () => DATA?.app?.focus === "road_cycling";
 const watch = () => DATA?.app?.provider_label || "Watch";
@@ -823,6 +846,57 @@ document.addEventListener("click", async (e) => {
   }
 });
 
+// Questions the coach asked (ask_athlete): a quick reply goes straight back to the session that asked; any other
+// answer is written in the chat.
+const SOURCE = { checkin: "check-in", "session-review": "session review", chat: "chat" };
+function questionItem(q, inChat = false) {
+  const busy = q.chat_status === "running" || (inChat && CHAT.data?.chat?.status === "running");
+  const opts = (q.options || []).map((o, i) => `<button class="btn" data-q="${q.id}" data-q-opt="${i}"${q.multi ? ' aria-pressed="false"' : ""}${busy ? " disabled" : ""}>${esc(o)}</button>`).join("");
+  const send = q.multi && q.options.length ? `<button class="btn primary" data-q-send="${q.id}" disabled>Send</button>` : "";
+  const reply = inChat ? "" : `<a class="btn link" href="#chat/${q.chat_id ? esc(q.chat_id) : "q/" + q.id}">${q.options.length ? "Other answer" : "Reply"} in chat ›</a>`;
+  const meta = inChat ? "" : `<div class="muted">${esc(SOURCE[q.source] || q.source)} · ${esc(dshort(q.created_at.slice(0, 10)))} ${esc(q.created_at.slice(11, 16))}${q.activity_id && q.source !== "checkin" ? ` · <a href="${sessionHref(q.activity_id)}">session</a>` : ""}${busy ? " · coach is replying…" : ""}</div>`;
+  return `<div class="qa" data-qa="${q.id}"><div class="q">${esc(q.question)}</div>${meta}
+    <div class="qopts">${opts}${send}${reply}<button class="btn link" data-q-dismiss="${q.id}">Dismiss</button></div></div>`;
+}
+function questionsCard(list, heading = "Your coach asks") {
+  if (!list.length) return "";
+  return `<section class="card"><h2>${esc(heading)} <span class="muted">${list.length === 1 ? "1 question" : list.length + " questions"} · tap an answer or reply in the chat</span></h2>${list.map((q) => questionItem(q)).join("")}<div class="msg" id="q-msg"></div></section>`;
+}
+const findQuestion = (id) => [...(DATA?.questions || []), ...(CHAT.data?.questions || [])].find((q) => q.id === id);
+async function answerQuestion(id, answer) {
+  document.querySelectorAll(`[data-qa="${id}"] button`).forEach((x) => { x.disabled = true; });
+  try {
+    const out = await api("/api/question/answer", { id, answer });
+    CHAT.id = out.chat_id; CHAT.data = out;
+    if (location.hash === `#chat/${out.chat_id}`) renderChat(); else location.hash = `#chat/${out.chat_id}`;
+    pollChat();
+    load();
+  } catch (err) {
+    const m = document.getElementById("q-msg") || document.getElementById("chat-msg");
+    if (m) { m.textContent = err.message; m.className = "msg err"; }
+    document.querySelectorAll(`[data-qa="${id}"] button`).forEach((x) => { x.disabled = false; });
+  }
+}
+document.addEventListener("click", async (e) => {
+  const opt = e.target.closest("[data-q-opt]"), send = e.target.closest("[data-q-send]"), dis = e.target.closest("[data-q-dismiss]");
+  if (opt) {
+    const q = findQuestion(Number(opt.dataset.q));
+    if (!q) return;
+    if (!q.multi) { answerQuestion(q.id, q.options[Number(opt.dataset.qOpt)]); return; }
+    opt.setAttribute("aria-pressed", opt.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    const box = opt.closest(".qa");
+    box.querySelector("[data-q-send]").disabled = !box.querySelector('[aria-pressed="true"]');
+  } else if (send) {
+    const q = findQuestion(Number(send.dataset.qSend)), box = send.closest(".qa");
+    const picked = [...box.querySelectorAll('[data-q-opt][aria-pressed="true"]')].map((b) => q.options[Number(b.dataset.qOpt)]);
+    if (q && picked.length) answerQuestion(q.id, picked.join(", "));
+  } else if (dis) {
+    dis.disabled = true;
+    try { await api("/api/question/dismiss", { id: Number(dis.dataset.qDismiss) }); if (CHAT.id && route()[0] === "chat") await fetchChat(); await load(); }
+    catch (err) { dis.disabled = false; }
+  }
+});
+
 function checkinCard(d) {
   const c = d.checkin;
   if (!c) return "";
@@ -882,6 +956,7 @@ function viewToday(d) {
     series: [{ key: "ctl", label: "Fitness (CTL)", color: "var(--series-1)" }, { key: "atl", label: "Fatigue (ATL)", color: "var(--series-2)" }],
     tipRows: [["Fitness", "ctl", "var(--series-1)"], ["Fatigue", "atl", "var(--series-2)"], ["Form", "tsb"], ["TSS", "tss"]] }));
   return `${sourceBanner(d)}<div class="grid two">${todayCard(d)}${comingUpCard(d)}</div>
+    ${questionsCard(d.questions || [])}
     ${suggestionsCard(d.suggestions || [])}
     ${checkinCard(d)}
     <div class="grid two"><section class="card"><h2>Health · last 30 days <a href="#health">Trends ›</a></h2>${healthTiles(d, "spk-t")}</section>
@@ -1847,7 +1922,7 @@ function viewSession(d, id) {
         ${watchBits ? `<div class="muted">${esc(watchBits)}</div>` : ""}${o.note ? `<div class="note">“${esc(o.note)}”</div>` : ""}
         ${x.note ? `<div class="muted" style="margin-top:6px">${esc(x.note)}</div>` : ""}
         ${(nb.same_day || []).length ? `<div class="muted" style="margin-top:6px">Same day: ${nb.same_day.map((s) => `<a href="${sessionHref(s.id)}">${esc(SPORT[s.sport] || s.sport)} · ${esc(s.name || "")}</a>`).join(" · ")}</div>` : ""}</section>
-      ${review}${suggestionsCard((DATA.suggestions || []).filter((s) => s.activity_id === o.id && s.source === "session-review"), "Suggested from this review")}
+      ${review}${questionsCard((DATA.questions || []).filter((q) => q.activity_id === o.id && q.source === "session-review"), "Your coach asks about this session")}${suggestionsCard((DATA.suggestions || []).filter((s) => s.activity_id === o.id && s.source === "session-review"), "Suggested from this review")}
       <div class="grid two"><section class="card"><h2>Planned that day</h2>${plannedHtml}</section>
         <section class="card"><h2>Form going in</h2><div class="stats">${statBox(fmt(form.ctl), "Fitness (CTL)")}${statBox(fmt(form.atl), "Fatigue (ATL)")}${statBox(fmt(form.tsb), "Form (TSB)")}</div>
           ${m.decoupling?.note ? `<div class="muted">${esc(m.decoupling.note)}</div>` : ""}</section></div>
@@ -2189,6 +2264,125 @@ function renderSettings() {
   el.querySelectorAll("[data-focus]").forEach((b) => b.addEventListener("click", () => act("/api/settings/focus", { focus: b.dataset.focus }, "Focus saved.")));
 }
 
+// ---------------------------------------------------------------- Chat
+// Each conversation is a Claude Code session on the coach's machine; a message resumes it (claude -p --resume).
+// The automatic check-in and reviews are conversations too, so they can be answered here.
+const CHAT = { id: null, data: null, list: null, timer: null, drafts: {}, msg: null };
+const KIND = { chat: "Chat", checkin: "Check-in", "session-review": "Review" };
+const stamp = (t) => t ? `${t.slice(0, 10) === todayKey() ? "today" : dshort(t.slice(0, 10))} ${t.slice(11, 16)}` : "";
+
+function viewChat(d, id, sub) {
+  CHAT.id = id === "q" ? null : id || null;
+  CHAT.q = id === "q" ? Number(sub) : null;
+  CHAT.msg = null;
+  if (CHAT.id && CHAT.data?.chat?.id !== CHAT.id) CHAT.data = null;
+  fetchChat();
+  return '<div id="chat"></div>';  // render() fills it from the cached conversation, fetchChat() refreshes it
+}
+
+async function fetchChat() {
+  try {
+    if (CHAT.id) CHAT.data = await api(`/api/chat/${encodeURIComponent(CHAT.id)}`);
+    else CHAT.list = await api("/api/chats");
+  } catch (e) { CHAT.msg = e.message; }
+  renderChat();
+  pollChat();
+}
+
+function pollChat() {
+  clearTimeout(CHAT.timer);
+  if (route()[0] !== "chat") return;
+  const busy = CHAT.id ? CHAT.data?.chat?.status === "running" : (CHAT.list?.chats || []).some((c) => c.status === "running");
+  if (!busy) return;
+  CHAT.timer = setTimeout(async () => {
+    const was = CHAT.data?.chat?.status;
+    await fetchChat();
+    if (CHAT.id && was === "running" && CHAT.data?.chat?.status !== "running") load();  // the coach may have changed the plan or note
+  }, CHAT.id ? 1500 : 4000);
+}
+
+function composer(placeholder, disabled) {
+  const key = CHAT.id || (CHAT.q ? "q" + CHAT.q : "new");
+  return `<form class="composer" id="chat-form"><textarea id="chat-text" rows="2" placeholder="${esc(placeholder)}" aria-label="Message to the coach">${esc(CHAT.drafts[key] || "")}</textarea>
+    <button class="btn primary" type="submit"${disabled ? " disabled" : ""}>Send</button></form><div class="msg${CHAT.msg ? " err" : ""}" id="chat-msg">${esc(CHAT.msg || "")}</div>`;
+}
+
+function chatListHtml() {
+  const L = CHAT.list;
+  if (!L) return '<section class="card"><div class="empty">Loading…</div></section>';
+  const loose = (L.questions || []).filter((q) => !q.chat_id);
+  const rows = (L.chats || []).map((c) => `<a class="chatrow rowlink" href="#chat/${esc(c.id)}"><span><b>${esc(c.title)}</b>
+      <span class="sub">${c.kind !== "chat" ? `<span class="sport">${esc(KIND[c.kind])}</span>` : ""}${esc(c.last || "")}</span></span>
+      <span class="when">${esc(stamp(c.updated_at))}${c.status === "running" ? '<br><span class="thinking">replying</span>' : c.status === "failed" ? '<br><span class="err">failed</span>' : ""}${c.open_questions ? `<br><span class="badge">${c.open_questions}</span>` : ""}</span><span class="chev">›</span></a>`).join("");
+  return `${questionsCard(loose, "Questions from other conversations")}
+    <section class="card"><h2>New conversation <span class="muted">e.g. "move Thursday's intervals to Friday" or /week-review</span></h2>${composer("Write to your coach…", false)}</section>
+    <section class="card"><h2>Conversations <span class="muted">automatic check-ins and reviews too: answer them here</span></h2>${rows || '<div class="empty">No conversations yet.</div>'}</section>`;
+}
+
+function chatThreadHtml() {
+  const D = CHAT.data;
+  if (!D) return `<section class="card"><div class="${CHAT.msg ? "err" : "empty"}">${esc(CHAT.msg || "Loading…")}</div></section>`;
+  const c = D.chat, running = c.status === "running";
+  const link = c.kind === "session-review" && c.activity_id ? ` · <a href="${sessionHref(c.activity_id)}">session ›</a>` : c.kind === "checkin" && c.day === todayKey() ? ' · <a href="#today">Today ›</a>' : "";
+  const msgs = D.messages.map((m) => m.role === "coach"
+    ? `<div class="bubble coach"><div class="who">Coach · ${esc(stamp(m.created_at))}</div>${richText(m.text)}</div>`
+    : `<div class="bubble athlete"><div class="who">${m.question ? `Answer to: ${esc(m.question)}` : "You"} · ${esc(stamp(m.created_at))}</div>${esc(m.text)}</div>`).join("");
+  const open = D.questions.filter((q) => q.status === "open");
+  const pending = running ? `<div class="bubble coach pending" aria-live="polite"><div class="who"><span class="thinking">Coach is ${c.progress ? esc(c.progress.startsWith("skill") ? "running " + c.progress : "looking at: " + c.progress) : "thinking"}</span></div>${c.draft ? richText(c.draft) : ""}</div>` : "";
+  const failed = c.status === "failed" ? `<div class="msg err">No reply: ${esc(c.error || "the run failed")} <button class="btn" data-chat-retry>Try again</button></div>` : "";
+  const asks = open.length ? `<section class="card" style="margin-top:12px"><h2>Your coach asks</h2>${open.map((q) => questionItem(q, true)).join("")}</section>` : "";
+  return `${crumbs([["Chat", "chat"], [c.title]])}
+    <div class="kicker"><span class="sport">${esc(KIND[c.kind] || c.kind)}</span><span>started ${esc(stamp(c.created_at))}</span>${link}</div>
+    <div class="thread">${msgs || '<div class="empty">Write your first message below.</div>'}${pending}</div>${failed}${asks}
+    ${composer(open.length ? "Or write your own answer…" : "Reply to your coach…", running)}`;
+}
+
+function chatQuestionHtml() {
+  const q = (CHAT.list?.questions || DATA.questions || []).find((x) => x.id === CHAT.q);
+  if (!CHAT.list && !q) return '<section class="card"><div class="empty">Loading…</div></section>';
+  if (!q) return `${crumbs([["Chat", "chat"], ["Question"]])}<section class="card"><div class="empty">This question was already answered or dismissed.</div></section>`;
+  return `${crumbs([["Chat", "chat"], ["Answer"]])}<section class="card"><h2>Your coach asked <span class="muted">${esc(SOURCE[q.source] || q.source)} · ${esc(stamp(q.created_at))}</span></h2>${questionItem(q, true)}
+    ${composer("Your answer…", false)}</section>`;
+}
+
+function renderChat() {
+  const el = document.getElementById("chat");
+  if (!el) return;
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 120;
+  const focused = document.activeElement?.id === "chat-text";
+  el.innerHTML = CHAT.q ? chatQuestionHtml() : CHAT.id ? chatThreadHtml() : chatListHtml();
+  const ta = document.getElementById("chat-text"), form = document.getElementById("chat-form");
+  const key = CHAT.id || (CHAT.q ? "q" + CHAT.q : "new");
+  if (ta) {
+    ta.addEventListener("input", () => { CHAT.drafts[key] = ta.value; });
+    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit(); } });
+    if (focused) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  }
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = ta.value.trim();
+    if (!text) return;
+    form.querySelector("button").disabled = true;
+    try {
+      if (CHAT.q) { delete CHAT.drafts[key]; await answerQuestion(CHAT.q, text); return; }
+      const out = await api("/api/chat/send", { chat_id: CHAT.id, text });
+      delete CHAT.drafts[key];
+      CHAT.msg = null; CHAT.id = out.chat_id; CHAT.data = out;
+      if (location.hash !== `#chat/${out.chat_id}`) location.hash = `#chat/${out.chat_id}`;
+      else { renderChat(); pollChat(); window.scrollTo(0, document.body.scrollHeight); }
+      load();
+    } catch (err) {
+      CHAT.msg = err.message; renderChat();
+    }
+  });
+  el.querySelector("[data-chat-retry]")?.addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try { CHAT.data = await api("/api/chat/retry", { chat_id: CHAT.id }); CHAT.msg = null; } catch (err) { CHAT.msg = err.message; }
+    renderChat(); pollChat();
+  });
+  if (CHAT.id && nearBottom) window.scrollTo(0, document.body.scrollHeight);
+}
+
 // ---------------------------------------------------------------- routing
 function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
@@ -2204,7 +2398,7 @@ function render() {
   lastPage[section[0]] = active;
   document.getElementById("tabs").innerHTML = SECTIONS.map(([k, label, pages]) => k === "settings"
     ? `<a href="#settings" class="gear${k === section[0] ? " on" : ""}" title="Settings" aria-label="Settings"${k === section[0] ? ' aria-current="page"' : ""}>⚙</a>`
-    : `<a href="#${lastPage[k] || pages[0]}"${k === section[0] ? ' class="on" aria-current="true"' : ""}>${label}</a>`).join("");
+    : `<a href="#${k === "chat" ? "chat" : lastPage[k] || pages[0]}"${k === section[0] ? ' class="on" aria-current="true"' : ""}>${label}${k === "chat" && (d.questions || []).length ? `<span class="badge" aria-label="${d.questions.length} open questions">${d.questions.length}</span>` : ""}</a>`).join("");
   document.getElementById("subtabs").innerHTML = section[2].length > 1
     ? section[2].map((k) => `<a href="#${k}"${k === active ? ' aria-current="page"' : ""}>${esc(labels[k])}</a>`).join("") : "";
   POST = [];
@@ -2215,10 +2409,12 @@ function render() {
   else if (tab === "plan" && parts[1] === "day") html = viewDay(d, parts[2]);
   else if (tab === "session") html = viewSession(d, parts[1]);
   else if (tab === "sports") html = viewSport(d, parts[1]);
+  else if (tab === "chat") html = viewChat(d, parts[1], parts[2]);
   else html = { today: viewToday, plan: viewPlan, races: viewRaces, progress: viewProgress, recovery: viewRecovery, health: viewHealth, sleep: viewSleep, nutrition: viewNutrition, load: viewLoad, sessions: viewSessions, settings: viewSettings }[tab](d);
   document.getElementById("app").innerHTML = html;
   POST.forEach((f) => f());
   if (tab === "settings") renderSettings();
+  if (tab === "chat") renderChat();
   if (location.hash !== lastHash) { if (lastHash !== null) window.scrollTo(0, 0); lastHash = location.hash; }
   const synced = d.last_sync ? d.last_sync.replace("T", " ") : "never";
   document.getElementById("meta").textContent = `${d.app.provider ? watch() + " sync " + synced : "No data source"} · page ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
@@ -2234,7 +2430,7 @@ async function load() {
     clearTimeout(sugTimer);
     if ((DATA.suggestions || []).some((s) => ["accepted", "applying"].includes(s.status))) sugTimer = setTimeout(load, 5000);
     // Don't wipe a half-typed key, login address or weigh-in.
-    if (["settings", "nutrition"].includes(route()[0]) && document.activeElement?.tagName === "INPUT") return;
+    if (["settings", "nutrition", "chat"].includes(route()[0]) && ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     render();
   } catch (e) {
     document.getElementById("meta").innerHTML = `<span class="err">Could not load data: ${esc(e.message)}</span>`;

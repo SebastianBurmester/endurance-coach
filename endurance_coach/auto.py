@@ -1,6 +1,8 @@
 """Unattended coaching runs after each sync: the morning check-in once the night's sleep is in, and a review of
 every newly analyzed session. Each run is a headless Claude Code session (`claude -p /auto-...`) in this checkout,
-so it has the coach MCP server, CLAUDE.md and the skills; nobody answers it, so the auto-* skills never ask."""
+so it has the coach MCP server, CLAUDE.md and the skills. Nobody answers while it runs, so the auto-* skills decide
+without waiting; questions they ask with ask_athlete show on the dashboard, and the athlete's answer resumes the same
+session as a dashboard chat (chats.py)."""
 
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ import time
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from . import health, settings, store
+from . import chats, health, settings, store
 from .config import DATA_DIR, NON_TRAINING_SPORTS, ROOT
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,7 +30,7 @@ RUN_TIMEOUT_S = 20 * 60
 
 # Hard limits for unattended runs, on top of what the skills say: read everything, write the check-in, review, coach
 # note and suggestions, never the plan itself. Thresholds, weight, profile, race and nutrition plans need the
-# athlete's yes in a chat. Applying a suggestion the athlete accepted on the dashboard may also change that session
+# athlete's yes in a chat (the athlete's answer to a question resumes the run as a chat, with chat permissions). Applying a suggestion the athlete accepted on the dashboard may also change that session
 # and update it on the COROS calendar.
 _ALLOWED = ["mcp__coach", "Skill", "Read", "Glob", "Grep"]
 _NEVER = ["AskUserQuestion", "Bash", "PowerShell", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch",
@@ -103,26 +105,35 @@ def new_sessions(state: dict[str, Any], today: date) -> list[dict[str, Any]]:
     return due
 
 
-def _claude() -> str:
+def claude_path() -> str:
     path = os.environ.get("COACH_CLAUDE") or shutil.which("claude")
     if not path:
         raise RuntimeError("claude not found on PATH (set COACH_CLAUDE in coach.env)")
     return path
 
 
-def run_claude(prompt: str, report_name: str, apply: bool = False) -> tuple[bool, str]:
+def run_claude(prompt: str, report_name: str, apply: bool = False,
+               chat: dict[str, Any] | None = None) -> tuple[bool, str]:
     """One headless Claude Code session in this checkout. The reply is saved to data/auto/<report_name>.md.
-    apply: the run applies a suggestion the athlete accepted, so it may change the plan."""
+    apply: the run applies a suggestion the athlete accepted, so it may change the plan.
+    chat: {kind, title, activity_id?, day?} makes the run a dashboard conversation the athlete can answer."""
     denied = _NEVER + ([] if apply else _PLAN_WRITES)
-    cmd = [_claude(), "-p", prompt, "--output-format", "text",
+    cmd = [claude_path(), "-p", prompt, "--output-format", "text",
            "--allowedTools", ",".join(_ALLOWED), "--disallowedTools", ",".join(denied)]
+    env = None
+    chat_id = chats.begin_auto(**chat) if chat else None
+    if chat_id:
+        cmd += ["--session-id", chat_id]
+        env = {**os.environ, "COACH_CHAT_ID": chat_id}  # questions it asks belong to this session
     started = time.time()
     try:
         proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-                              timeout=RUN_TIMEOUT_S, stdin=subprocess.DEVNULL)
+                              timeout=RUN_TIMEOUT_S, stdin=subprocess.DEVNULL, env=env)
         ok, out = proc.returncode == 0 and bool(proc.stdout.strip()), proc.stdout.strip() or proc.stderr.strip()
     except subprocess.TimeoutExpired:
         ok, out = False, f"timed out after {RUN_TIMEOUT_S // 60} min"
+    if chat_id:
+        chats.finish_auto(chat_id, ok, out)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().isoformat(timespec="minutes")
     (REPORT_DIR / f"{report_name}.md").write_text(
@@ -151,7 +162,9 @@ def run(only: set[str] | None = None, dry_run: bool = False) -> dict[str, Any]:
             entry["tries"] += 1
             state["checkin"] = entry
             _save_state(state)  # count the try before the run, so a crash cannot loop
-            ok, out = run_claude("/auto-checkin", f"{today.isoformat()}-checkin")
+            ok, out = run_claude("/auto-checkin", f"{today.isoformat()}-checkin",
+                                 chat={"kind": "checkin", "title": f"Check-in {today.isoformat()}",
+                                       "day": today.isoformat()})
             if ok and store.checkin(today.isoformat()) is None:
                 report = (REPORT_DIR / f"{today.isoformat()}-checkin.md").read_text(encoding="utf-8")
                 store.put_checkin(today.isoformat(), report.split("-->", 1)[-1], "auto")
@@ -166,7 +179,9 @@ def run(only: set[str] | None = None, dry_run: bool = False) -> dict[str, Any]:
         tries = state.setdefault("review_tries", {})
         tries[str(a["id"])] = tries.get(str(a["id"]), 0) + 1
         _save_state(state)
-        ok, out = run_claude(f"/auto-session-review {a['id']}", f"{a['date']}-review-{a['id']}")
+        ok, out = run_claude(f"/auto-session-review {a['id']}", f"{a['date']}-review-{a['id']}",
+                             chat={"kind": "session-review", "activity_id": a["id"], "day": a["date"],
+                                   "title": f"Review: {a['name'] or a['sport']} {a['date']}"})
         if ok and store.session_review(a["id"]) is None:
             report = (REPORT_DIR / f"{a['date']}-review-{a['id']}.md").read_text(encoding="utf-8")
             store.put_session_review(a["id"], report.split("-->", 1)[-1], "auto")

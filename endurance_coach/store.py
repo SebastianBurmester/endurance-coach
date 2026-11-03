@@ -64,6 +64,43 @@ CREATE TABLE IF NOT EXISTS suggestions (             -- plan changes a check-in 
     created_at TEXT,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS chats (                   -- dashboard conversations; each one is a Claude Code session
+    id TEXT PRIMARY KEY,                       -- the Claude Code session id (claude -p --resume <id>)
+    kind TEXT NOT NULL DEFAULT 'chat',         -- chat | checkin | session-review (the automatic runs)
+    title TEXT NOT NULL,
+    activity_id INTEGER,
+    day TEXT,
+    status TEXT NOT NULL DEFAULT 'idle',       -- idle | running | failed
+    runner TEXT NOT NULL DEFAULT 'web',        -- web (dashboard service) | auto (coach auto): who runs the turn
+    started INTEGER NOT NULL DEFAULT 0,        -- the Claude session exists (resume it rather than create it)
+    progress TEXT,                             -- while running: the tool in use
+    draft TEXT,                                -- while running: the latest text the coach wrote
+    error TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT NOT NULL,
+    role TEXT NOT NULL,                        -- athlete | coach
+    text TEXT NOT NULL,
+    question TEXT,                             -- athlete: the coach's question this answers
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages ON chat_messages(chat_id, id);
+CREATE TABLE IF NOT EXISTS questions (               -- what the coach asks with ask_athlete; answered on the dashboard
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id TEXT,                              -- the session that asked (the answer resumes it); NULL outside the dashboard
+    question TEXT NOT NULL,
+    options_json TEXT,                         -- quick replies
+    multi INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'chat',       -- checkin | session-review | chat
+    activity_id INTEGER,
+    status TEXT NOT NULL DEFAULT 'open',       -- open | answered | dismissed
+    answer TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS body_log (                -- weigh-ins logged by hand; kept when the source changes
     date TEXT PRIMARY KEY,
     weight_kg REAL NOT NULL,

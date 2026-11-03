@@ -74,12 +74,22 @@ systemctl --user enable --now coach-web@<folder> coach-sync@<folder>.timer coach
 |---|---|
 | `coach-sync@.timer` | Sync every 10 min (skips if a sync of that athlete is already running) |
 | `coach-auto@.service` | After each sync: unattended check-in / session reviews, if `COACH_AUTO` is set (see below) |
-| `coach-web@.service` | Dashboard + Settings on the Tailscale address only (no auth: Tailscale is the boundary); applies accepted suggestions |
+| `coach-web@.service` | Dashboard + Settings on the Tailscale address only (no auth: Tailscale is the boundary); applies accepted suggestions, runs the chat |
 | `coach-remote@.service` | Claude Code Remote Control for that checkout (claude.ai / the Claude app) |
 | `coach-update@.timer` | Every 5 min: `git pull`, reinstall if `pyproject.toml` changed, restart the dashboard |
 
 An athlete with their own Claude account logs in once with their config dir:
 `cd ~/<folder> && CLAUDE_CONFIG_DIR=~/.claude-<name> claude` → `/login`, trust the folder, `/exit`.
+
+### Dashboard chat
+
+The **Chat** tab talks to the coach without the Claude app: each conversation is a headless Claude Code session in
+the checkout, run by the dashboard service with the athlete's Claude login (`CLAUDE_CONFIG_DIR`). The first message
+starts it (`claude -p --session-id <id>`), every later one resumes it (`--resume <id>`), and the page shows what the
+coach is doing until the reply is there. Skills work too (`/checkin`, `/week-review`). The automatic check-ins and
+reviews show up there as conversations you can answer. Chats may use all coach tools (plan changes, thresholds
+after you confirm them), but no shell or file edits. A reply that takes longer than 15 minutes or is cut off by a
+dashboard restart can be sent again. Optional: `COACH_CHAT_MODEL` in `coach.env` picks the model.
 
 ### Automatic check-in and session reviews
 
@@ -91,8 +101,9 @@ Claude Code run (`claude -p`) in the checkout when something is due:
 - **Session review** (`/auto-session-review <id>`): for each session from today or yesterday whose FIT file has
   been analyzed. Sessions already there when the automation first runs are not reviewed.
 
-The auto skills know nobody answers: they never ask and write open questions into the coach note. Like the chat
-versions, they never change the plan: each change is a **suggestion** on the Today page (and on the session's page)
+The auto skills know nobody is there while they run: they decide without waiting, and what they need to know they
+ask on the dashboard (`ask_athlete`: the question with quick-reply buttons and a link to the chat). Your answer goes
+back into the same Claude session, which then carries on as a chat. Like the chat versions, they never change the plan: each change is a **suggestion** on the Today page (and on the session's page)
 with *Accept* / *Dismiss*. *Accept* starts a headless `/apply-suggestion` run from the dashboard service that makes
 the change and, with COROS, updates the workout on the watch; the card shows the result. Thresholds, profile, race
 and nutrition plans stay chat-only (enforced with `--allowedTools` / `--disallowedTools`). Check-ins show on the Today page and reviews on the

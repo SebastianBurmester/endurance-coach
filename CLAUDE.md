@@ -57,6 +57,7 @@ after the athlete agrees to the number.
 | Read the plan (+ compliance, projected CTL/TSB) | `get_plan` |
 | Write / change the plan | `save_plan`, `adjust_planned_session`, `clear_plan` |
 | Suggest a plan change from a check-in or review (athlete accepts on the dashboard) | `suggest_plan_change`, `list_suggestions`, `resolve_suggestion` |
+| Ask the athlete something they answer on the dashboard, with quick-reply options (unattended runs, dashboard chat) | `ask_athlete` |
 | Force a sync | `sync_data` |
 | COROS only: put a run or bike workout on the watch | `coros_workout_schema`, then `push_session_to_coros` |
 | Anything else from the source | `garmin_raw` (Garmin) or `coros_raw` (COROS) |
@@ -84,12 +85,16 @@ Sessions don't remember each other. The saved plan (`get_plan`) and `athlete.jso
 - `/training-plan` builds a block, `/checkin` adapts today, `/session-review` judges execution, and `/week-review`
   checks compliance and details next week.
 - `/auto-checkin`, `/auto-session-review` and `/apply-suggestion` are the unattended versions that `coach auto` starts on the Pi after a
-  sync (morning check-in once the night's sleep is in, a review of each new session). Nobody answers those runs, so
-  they never ask; they leave open questions ("Open for you: …") in the coach note and plan changes as suggestions. Their replies are
+  sync (morning check-in once the night's sleep is in, a review of each new session). Nobody answers while they run,
+  so they never wait: they decide conservatively, put questions on the dashboard with `ask_athlete` and plan changes
+  in suggestions. The athlete's answer resumes that same session as a dashboard chat. Their replies are
   saved like the attended ones (today's check-in comes back in `daily_readiness.checkin`, a review in
   `analyze_session.coach_review`; copies in `data/auto/`): when the athlete refers to this morning's check-in or a
   review they did not ask for in this chat, read it there, pick up its open points and apply proposals only once
   the athlete agrees.
+- The dashboard's **Chat** page is a conversation like any other, run as a headless session in this checkout
+  (`claude -p`, resumed per message). The athlete reads it on a phone: AskUserQuestion does not exist there; offer
+  choices with `ask_athlete` and end the turn. Typing `/checkin` etc. there runs the skill.
 
 Data auto-syncs when older than 30 min (on the Pi a timer syncs every 10 min). If a result has `sync_warning`, say so briefly. "not connected" or a
 rejected key/login means the athlete reconnects in the dashboard's Settings tab (Garmin: new Personal API key;

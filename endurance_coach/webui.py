@@ -1,6 +1,6 @@
 """Tiny web dashboard with a Settings tab (stdlib only). Bind it to the Tailscale address; there is no auth.
 
-Writes (settings, keys, logins, sync, accepting a suggested plan change) only accept JSON POSTs from the page itself: a cross-site form can't send
+Writes (settings, keys, logins, sync, accepting a suggested plan change, chat messages) only accept JSON POSTs from the page itself: a cross-site form can't send
 application/json without a CORS preflight (never answered here), and the Origin header must match the host.
 """
 
@@ -13,12 +13,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from . import dashboard, nutrition, settings, store, suggestions, sync, views
+from . import chats, dashboard, nutrition, settings, store, suggestions, sync, views
 from .util import js_safe
 
 _LOGGER = logging.getLogger(__name__)
 _PAGE = Path(__file__).with_name("dashboard.html")
-_MAX_BODY = 16_384
+_MAX_BODY = 65_536
 
 
 class _UnknownAction(Exception):
@@ -84,6 +84,14 @@ def _post(path: str, body: dict[str, Any]) -> dict[str, Any]:
         return nutrition.delete_weight(str(body.get("date") or ""))
     if path == "/api/suggestion":
         return suggestions.act(int(body.get("id") or 0), str(body.get("action") or ""))
+    if path == "/api/chat/send":
+        return chats.send(str(body["chat_id"]) if body.get("chat_id") else None, str(body.get("text") or ""))
+    if path == "/api/chat/retry":
+        return chats.retry(str(body.get("chat_id") or ""))
+    if path == "/api/question/answer":
+        return chats.answer_question(int(body.get("id") or 0), str(body.get("answer") or ""))
+    if path == "/api/question/dismiss":
+        return chats.dismiss_question(int(body.get("id") or 0))
     if path == "/api/settings/focus":
         settings.save(focus=body.get("focus"))
     elif path == "/api/settings/source":
@@ -132,6 +140,10 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(200, dashboard.build_json(), "application/json")
             elif path == "/api/settings":
                 self._json(200, settings_state())
+            elif path == "/api/chats":
+                self._json(200, {"chats": chats.listing(), "questions": chats.open_questions()})
+            elif path.startswith("/api/chat/"):
+                self._json(200, chats.get(path.removeprefix("/api/chat/")))
             elif path.startswith("/api/view/"):
                 self._json(200, js_safe(_view(path, urllib.parse.parse_qs(query))))
             elif path == "/healthz":
@@ -175,5 +187,6 @@ class _Handler(BaseHTTPRequestHandler):
 def serve(host: str, port: int) -> None:
     httpd = ThreadingHTTPServer((host, port), _Handler)
     suggestions.resume()
+    chats.resume()
     print(f"Dashboard on http://{host}:{port}", flush=True)
     httpd.serve_forever()

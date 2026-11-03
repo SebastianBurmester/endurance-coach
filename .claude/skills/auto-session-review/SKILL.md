@@ -6,9 +6,9 @@ disable-model-invocation: true
 
 # Unattended session review
 
-**This is an automated run. No one is in this session and no one will answer.** Never ask a question, offer a
-choice, or wait for confirmation; do not end with "shall I…?" or "let me know". Where the interactive skill says
-"ask", write the question down instead (step 4).
+**This is an automated run. No one is in this session while it runs.** Never wait for confirmation and do not end
+with "shall I…?" or "let me know". Where the interactive skill says "ask", put the question on the dashboard with
+`ask_athlete` instead (step 4) and carry on.
 
 1. Read `.claude/skills/session-review/SKILL.md` and follow its steps for the activity id given as the argument
    (`analyze_session(activity_id=…)`). Without an id, review the latest session.
@@ -18,8 +18,11 @@ choice, or wait for confirmation; do not end with "shall I…?" or "let me know"
 3. **Thresholds:** if the session suggests a new FTP, threshold pace, CSS or LTHR, name the number and the evidence
    as a proposal. Never set it (the profile tools are blocked in this run).
 4. **Things that need the athlete** (how it felt when there is no note or RPE, pain, a session that looks
-   mis-recorded): do not ask. Add one line "Für dich offen: …" / "Open for you: …" at the end of the reply and the
-   coach note.
+   mis-recorded): ask with `ask_athlete` (with the activity id), one question per call, at most 2 per run, with 2-4
+   short quick-reply `options` in the athlete's language when the answer is a choice (e.g. RPE: "Locker (3-4)" /
+   "Mittel (5-6)" / "Hart (7-8)" / "Am Limit (9-10)"). Do not wait: review on the data you have. Also list them as
+   one line "Frage an dich: …" / "Question for you: …" at the end of the reply. The answer comes back into this
+   session as a chat message: then update the review and coach note if it changes the verdict.
 5. **Language:** use the language of the session's `athlete_note`, else of recent workout notes; without notes,
    English.
 6. **Save the review on the session** with `save_session_review` (`origin: "auto"`, the full final reply including
