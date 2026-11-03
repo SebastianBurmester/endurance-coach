@@ -276,6 +276,29 @@ def activity(activity_id: int) -> dict[str, Any] | None:
     return _activity_dict(row) if row else None
 
 
+_JS_MAX_INT = 2 ** 53 - 1
+
+
+def find_activity_id(value: int | str | None) -> int | None:
+    """The cached activity an id from Claude means. COROS ids exceed what JavaScript holds exactly, so Claude Code may
+    hand over a rounded number (481468080766091664 → 481468080766091650): match it by its float value, if unique."""
+    text = str(value).strip().strip("\"'") if value is not None else ""
+    if not text:
+        return None
+    try:
+        wanted = int(text)
+    except ValueError:
+        return None
+    if activity(wanted) is not None:
+        return wanted
+    if abs(wanted) <= _JS_MAX_INT:
+        return None
+    with connect() as conn:
+        ids = [r["id"] for r in conn.execute("SELECT id FROM activities WHERE id > ?", (_JS_MAX_INT,))]
+    near = [i for i in ids if float(i) == float(wanted)]
+    return near[0] if len(near) == 1 else None
+
+
 def session_review(activity_id: int) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute("SELECT text, origin, updated_at FROM session_reviews WHERE activity_id = ?",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import re
@@ -11,7 +12,7 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from . import athlete, chats, coach, dashboard, nutrition, plan, settings, sleep, store, suggestions, sync, views
-from .util import to_date
+from .util import js_safe, to_date
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -39,6 +40,32 @@ def _instructions() -> str:
 
 
 mcp = MCPServer(name="coach", instructions=_instructions())
+# Activity ids, e.g. "481468080766091664": a string, because COROS ids are too large for Claude Code's JSON numbers.
+ActivityId = str | int
+
+
+def _tool(fn: Any) -> Any:
+    """Register a tool whose result reaches Claude with large integers (COROS activity ids) as strings: Claude Code
+    parses JSON in JavaScript, which rounds them, and the rounded id then matches no activity."""
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return js_safe(fn(*args, **kwargs))
+        except UnknownActivity as exc:  # an error Claude can read (a raised error only says "Error executing tool")
+            return {"error": str(exc)}
+    return mcp.tool()(wrapper)
+
+
+class UnknownActivity(ValueError):
+    pass
+
+
+def _activity_id(value: ActivityId | None) -> int | None:
+    found = store.find_activity_id(value)
+    if found is None and value not in (None, ""):
+        raise UnknownActivity(f"Activity {value} is not in the cache. Pass the id exactly as list_activities shows it "
+                         "(a string), or run sync_data.")
+    return found
 
 
 def _prefetch() -> str | None:
@@ -51,7 +78,7 @@ def _wrap(payload: dict[str, Any], warning: str | None) -> dict[str, Any]:
     return payload
 
 
-@mcp.tool()
+@_tool
 def sync_data(days_back: int | None = None, max_fit_downloads: int = 20) -> dict[str, Any]:
     """Pull new activities, FIT files and health data from the connected source (Garmin or COROS) into the cache.
 
@@ -64,7 +91,7 @@ def sync_data(days_back: int | None = None, max_fit_downloads: int = 20) -> dict
         return {"error": str(exc)}
 
 
-@mcp.tool()
+@_tool
 def daily_readiness(day: str = "today") -> dict[str, Any]:
     """Morning readiness: last night's HRV (vs the watch's normal range and own baselines), resting HR, sleep,
     the watch's recovery gauge (COROS recovery % or Garmin Body Battery) and stress, plus training load
@@ -82,14 +109,14 @@ def daily_readiness(day: str = "today") -> dict[str, Any]:
     return _wrap(result, warning)
 
 
-@mcp.tool()
+@_tool
 def save_checkin(text: str, origin: str = "chat", day: str = "today") -> dict[str, Any]:
     """Save the day's check-in (the reply as written, markdown tables kept) for the dashboard's Today page.
     Replaces an earlier check-in of that day. origin: chat (a check-in in conversation) | auto (an unattended run)."""
     return store.put_checkin(to_date(day).isoformat(), text, "auto" if origin == "auto" else "chat")
 
 
-@mcp.tool()
+@_tool
 def training_load(days: int = 84) -> dict[str, Any]:
     """Performance Management Chart across all sports: current CTL (fitness), ATL (fatigue), TSB (form), ramp
     rate and ACWR, weekly volume per sport (sessions, hours, km, TSS, elevation, longest) and the last 14 days."""
@@ -97,7 +124,7 @@ def training_load(days: int = 84) -> dict[str, Any]:
     return _wrap(coach.training_load(days), warning)
 
 
-@mcp.tool()
+@_tool
 def list_activities(days: int = 14, sport: str | None = None) -> dict[str, Any]:
     """Recent activities, newest first: sport, distance, time, pace/speed, TSS (+source), IF, power, HR, EF,
     decoupling, the watch's load/TE/RPE and the athlete's note. sport: swim | bike | run | strength | multisport."""
@@ -105,31 +132,29 @@ def list_activities(days: int = 14, sport: str | None = None) -> dict[str, Any]:
     return _wrap({"activities": coach.list_activities(days, sport)}, warning)
 
 
-@mcp.tool()
-def analyze_session(activity_id: int | None = None, sport: str | None = None) -> dict[str, Any]:
+@_tool
+def analyze_session(activity_id: ActivityId | None = None, sport: str | None = None) -> dict[str, Any]:
     """Deep analysis of one session (default: the latest, optionally of one sport, e.g. 'bike' for the latest
     ride): TSS/IF, NP/VI/EF or pace/NGP, aerobic decoupling, time in HR and power zones, laps, best efforts, the
     watch's TE/load/RPE/note, the planned session for that day and form going in, and the coach's earlier
     review of it if one was saved (`coach_review`)."""
     warning = _prefetch()
-    result = coach.analyze_session(activity_id, sport)
+    result = coach.analyze_session(_activity_id(activity_id), sport)
     review = store.session_review(result["overview"]["id"]) if result.get("overview", {}).get("id") else None
     if review:
         result["coach_review"] = review
     return _wrap(result, warning)
 
 
-@mcp.tool()
-def save_session_review(activity_id: int, review: str, origin: str = "chat") -> dict[str, Any]:
+@_tool
+def save_session_review(activity_id: ActivityId, review: str, origin: str = "chat") -> dict[str, Any]:
     """Save the full session review (the reply as written, markdown tables and bullets kept) on the activity, so it
     shows on that session's dashboard page. Replaces an earlier review of the same activity.
     origin: chat (a review in conversation) | auto (an unattended run)."""
-    if store.activity(activity_id) is None:
-        return {"error": f"Activity {activity_id} is not in the cache."}
-    return store.put_session_review(activity_id, review, "auto" if origin == "auto" else "chat")
+    return store.put_session_review(_activity_id(activity_id), review, "auto" if origin == "auto" else "chat")
 
 
-@mcp.tool()
+@_tool
 def power_curve(days: int = 90, compare_days: int = 365) -> dict[str, Any]:
     """Bike mean-maximal power curve (1s-2h) in W and W/kg vs the longer window, with FTP / CP estimates.
     Only rides with power count."""
@@ -137,14 +162,14 @@ def power_curve(days: int = 90, compare_days: int = 365) -> dict[str, Any]:
     return _wrap(coach.power_curve(days, compare_days), warning)
 
 
-@mcp.tool()
+@_tool
 def zone_distribution(days: int = 28, sport: str | None = None) -> dict[str, Any]:
     """Time in HR zones per sport and bike power zones, the combined 3-zone split and the polarization index."""
     warning = _prefetch()
     return _wrap(coach.zone_distribution(days, sport), warning)
 
 
-@mcp.tool()
+@_tool
 def health_trends(days: int = 28) -> dict[str, Any]:
     """Daily and weekly-average HRV (with the watch's normal range), resting HR, sleep, sleep score, stress, the
     watch's recovery gauge (COROS recovery % or Body Battery) and weight. COROS adds its fitness assessment and,
@@ -153,7 +178,7 @@ def health_trends(days: int = 28) -> dict[str, Any]:
     return _wrap(coach.health_trends(days), warning)
 
 
-@mcp.tool()
+@_tool
 def sleep_analysis(days: int = 180, include_nights: bool = False) -> dict[str, Any]:
     """Sleep in depth (nights dated by wake-up day): last night, 7/30-day and window averages vs the athlete's sleep
     need, sleep debt, a target bedtime, rhythm and regularity (bed / wake / midpoint spread, social jet lag), weekday
@@ -166,7 +191,7 @@ def sleep_analysis(days: int = 180, include_nights: bool = False) -> dict[str, A
     return _wrap(sleep.analysis(days, include_nights=include_nights), warning)
 
 
-@mcp.tool()
+@_tool
 def progress_trends() -> dict[str, Any]:
     """Is the athlete getting fitter (last 365 days): threshold histories (FTP, run threshold, CSS) and what is in
     effect, CTL now vs 6 weeks ago and the year's peak, monthly hours per sport, monthly best power (5 s / 1 / 5 /
@@ -176,7 +201,7 @@ def progress_trends() -> dict[str, Any]:
     return _wrap(views.progress(), warning)
 
 
-@mcp.tool()
+@_tool
 def recovery_history(days: int = 120) -> dict[str, Any]:
     """Recovery over time: readiness status per day (green / amber / red with flags), HRV vs its 60-day range,
     resting HR delta, sleep and TSS per day; strain episodes (2+ days of red or HRV / RHR flags) with the load
@@ -186,7 +211,7 @@ def recovery_history(days: int = 120) -> dict[str, Any]:
     return _wrap(views.recovery(days), warning)
 
 
-@mcp.tool()
+@_tool
 def sport_overview(sport: str = "run") -> dict[str, Any]:
     """One sport (swim, bike, run, strength): volume for 7 / 28 / 84 / 365 days, 26 weeks of volume with run ramp
     (+10%) and long-run share (30%) checks, HR / power zones for 4 and 12 weeks, sport-specific trends (bike speed,
@@ -196,7 +221,7 @@ def sport_overview(sport: str = "run") -> dict[str, Any]:
     return _wrap(views.sport_view(sport), warning)
 
 
-@mcp.tool()
+@_tool
 def race_overview() -> dict[str, Any]:
     """Every event in the profile: days to go, projected CTL / ATL / TSB on race day from the saved plan with a
     verdict against the +10 to +25 target, sessions and key sessions left, taper (block and TSS drop in the last 10
@@ -205,7 +230,7 @@ def race_overview() -> dict[str, Any]:
     return _wrap(views.races(), warning)
 
 
-@mcp.tool()
+@_tool
 def save_race_plan(event_date: str, race_plan: str | None = None, result: str | None = None,
                    event_name: str | None = None, distance_km: float | None = None, elevation_m: float | None = None,
                    expected_duration_h: float | None = None) -> dict[str, Any]:
@@ -219,7 +244,7 @@ def save_race_plan(event_date: str, race_plan: str | None = None, result: str | 
                                         "expected_duration_h": expected_duration_h})
 
 
-@mcp.tool()
+@_tool
 def nutrition_overview() -> dict[str, Any]:
     """Weight and fueling: weigh-ins (scale and logged), trend weight, rate (kg/week over 28 days) vs the safe rate
     (0.5% of body weight per week), the weight target with a verdict and the date weight is locked before the next A
@@ -232,14 +257,14 @@ def nutrition_overview() -> dict[str, Any]:
     return _wrap(nutrition.overview(), warning)
 
 
-@mcp.tool()
+@_tool
 def log_weight(weight_kg: float, day: str = "today", note: str | None = None) -> dict[str, Any]:
     """Record a weigh-in the athlete reports (morning, after the toilet, before food). Manual entries win over the
     scale on the same day and show on the Nutrition tab. Does not change the profile weight."""
     return nutrition.log_weight(weight_kg, day, note)
 
 
-@mcp.tool()
+@_tool
 def save_nutrition_plan(strategy: str | None = None, key_climbs: list[nutrition.KeyClimb] | None = None) -> dict[str, Any]:
     """Save the nutrition strategy shown at the top of the dashboard's Nutrition tab: the weight approach for this
     phase (deficit size and on which days, when to stop), daily carbs / protein habits, in-ride fueling practice and
@@ -249,7 +274,7 @@ def save_nutrition_plan(strategy: str | None = None, key_climbs: list[nutrition.
     return nutrition.save_strategy(strategy, key_climbs)
 
 
-@mcp.tool()
+@_tool
 def week_summary(weeks_ago: int = 0) -> dict[str, Any]:
     """One training week (Mon-Sun): every session, totals per sport, HR / power zones, health averages, load at
     week end and plan vs actual. weeks_ago=0 is the current week, 1 the previous one."""
@@ -257,7 +282,7 @@ def week_summary(weeks_ago: int = 0) -> dict[str, Any]:
     return _wrap(coach.week_summary(weeks_ago), warning)
 
 
-@mcp.tool()
+@_tool
 def get_athlete_profile() -> dict[str, Any]:
     """The athlete's profile (threshold histories per sport, LTHR, max HR, weight, goals, events, availability),
     the thresholds currently in effect (with where each comes from), days until each upcoming event, and the app
@@ -275,7 +300,7 @@ def get_athlete_profile() -> dict[str, Any]:
     return out
 
 
-@mcp.tool()
+@_tool
 def update_athlete_profile(
     ftp: float | None = None,
     run_threshold_pace: str | None = None,
@@ -340,7 +365,7 @@ def update_athlete_profile(
     return result
 
 
-@mcp.tool()
+@_tool
 def get_plan(start_date: str = "today", days: int = 14) -> dict[str, Any]:
     """The training plan for a date range: blocks, planned sessions per sport (with any adjustments and the
     original), plan-vs-actual compliance for past days, and projected CTL/ATL/TSB through the range end
@@ -349,7 +374,7 @@ def get_plan(start_date: str = "today", days: int = 14) -> dict[str, Any]:
     return _wrap(plan.overview(to_date(start_date), days), warning)
 
 
-@mcp.tool()
+@_tool
 def save_plan(sessions: list[plan.PlannedSession], block: plan.PlanBlock | None = None,
               replace_existing: bool = True) -> dict[str, Any]:
     """Save planned sessions, and optionally the training block they belong to. Include rest days as sport/type
@@ -360,7 +385,7 @@ def save_plan(sessions: list[plan.PlannedSession], block: plan.PlanBlock | None 
     return plan.save(sessions, block, replace_existing)
 
 
-@mcp.tool()
+@_tool
 def adjust_planned_session(
     date: str,
     reason: str,
@@ -386,20 +411,20 @@ def adjust_planned_session(
     return result
 
 
-@mcp.tool()
+@_tool
 def suggest_plan_change(date: str, title: str, reason: str, source: str, slot: int = 1,
                         changes: dict[str, Any] | None = None, origin: str = "chat",
-                        activity_id: int | None = None) -> dict[str, Any]:
+                        activity_id: ActivityId | None = None) -> dict[str, Any]:
     """Suggest a change to one planned session instead of making it: the athlete sees it on the dashboard with
     Accept / Dismiss, and an accepted one is applied by a separate run. One suggestion per session changed (a moved
     session = one for the day it leaves, one for the day it goes to). An open suggestion for the same day and slot
     is replaced. title: one line, e.g. "Thu: VO2 5×4 min → 60 min Z2". reason: the numbers behind it.
     changes: the proposed adjust_planned_session fields (skip, sport, title, type, duration_min, tss, targets,
     structure, purpose). source: checkin | session-review. origin: chat | auto."""
-    return suggestions.add(date, title, reason, source, slot, changes, origin, activity_id)
+    return suggestions.add(date, title, reason, source, slot, changes, origin, _activity_id(activity_id))
 
 
-@mcp.tool()
+@_tool
 def list_suggestions(status: str = "open", suggestion_id: int | None = None) -> dict[str, Any]:
     """Suggested plan changes by status (open | accepted | applying | applied | dismissed | superseded | failed),
     or one by id."""
@@ -408,16 +433,16 @@ def list_suggestions(status: str = "open", suggestion_id: int | None = None) -> 
     return {"suggestions": suggestions.listing(status)}
 
 
-@mcp.tool()
+@_tool
 def resolve_suggestion(suggestion_id: int, status: str, result: str | None = None) -> dict[str, Any]:
     """Close a suggestion: applied (after making the change; result = what changed, one line), superseded or
     dismissed (no longer fits, e.g. a newer check-in decides otherwise; result = why), failed (could not apply)."""
     return suggestions.resolve(suggestion_id, status, result)
 
 
-@mcp.tool()
+@_tool
 def ask_athlete(question: str, options: list[str] | None = None, multi: bool = False,
-                source: str | None = None, activity_id: int | None = None) -> dict[str, Any]:
+                source: str | None = None, activity_id: ActivityId | None = None) -> dict[str, Any]:
     """Ask the athlete something they answer on the dashboard: the question shows on the Today page (and on the
     session's page with activity_id), the options as quick-reply buttons, plus a link to reply in the chat. Use it
     in unattended runs (check-in, session review) and in the dashboard chat, where AskUserQuestion does not exist; in
@@ -425,17 +450,17 @@ def ask_athlete(question: str, options: list[str] | None = None, multi: bool = F
     options: 2-5 short quick replies in the athlete's language (they can always write something else instead);
     multi: several options can be picked. source: checkin | session-review | chat (default: this conversation's kind).
     Never wait for the answer: finish the turn. It arrives as the next message in this conversation."""
-    return chats.ask(question, options, multi, source, activity_id)
+    return chats.ask(question, options, multi, source, _activity_id(activity_id))
 
 
-@mcp.tool()
+@_tool
 def clear_plan(start_date: str, end_date: str, include_blocks: bool = False) -> dict[str, Any]:
     """Delete planned sessions in a date range (and blocks fully inside it if include_blocks). Confirm with
     the athlete first. Workouts already pushed to COROS stay there (delete them in the COROS app)."""
     return plan.clear(start_date, end_date, include_blocks)
 
 
-@mcp.tool()
+@_tool
 def set_coach_note(text: str, kind: str = "checkin") -> dict[str, Any]:
     """Post the coach's current note to the athlete's dashboard page (replaces the previous note). Keep it short:
     the verdict and the 1-3 things that matter now, e.g. after a check-in, session review, week review or plan
@@ -443,7 +468,7 @@ def set_coach_note(text: str, kind: str = "checkin") -> dict[str, Any]:
     return dashboard.set_note(text, kind)
 
 
-@mcp.tool()
+@_tool
 def recompute_metrics(full: bool = False) -> dict[str, Any]:
     """Recompute stored activity metrics after threshold changes. full=True re-parses every FIT file so
     time-in-zone also updates (slow for large histories)."""
@@ -455,7 +480,7 @@ def recompute_metrics(full: bool = False) -> dict[str, Any]:
 if _PROVIDER == "coros":
     from . import coros_api
 
-    @mcp.tool()
+    @_tool
     def coros_workout_schema() -> dict[str, Any]:
         """The COROS structured-workout format (the `course` object) with its rules. Read it before the first
         push_session_to_coros in a conversation. Only run and bike workouts are supported (no swim)."""
@@ -464,7 +489,7 @@ if _PROVIDER == "coros":
         return {"description": t.get("description"),
                 "course_schema": (t.get("inputSchema") or {}).get("properties", {}).get("course")}
 
-    @mcp.tool()
+    @_tool
     def push_session_to_coros(date: str, course: dict[str, Any], slot: int = 1) -> dict[str, Any]:
         """Put a planned run or bike session on the athlete's COROS calendar so it syncs to the watch. `course`
         follows coros_workout_schema. The first push creates the workout; pushing the same date/slot again updates
@@ -484,7 +509,7 @@ if _PROVIDER == "coros":
             plan.set_coros_ref(date, slot, ref.group(1))
         return {"created": True, "coros_ref_saved": bool(ref), "coros": text[:2000]}
 
-    @mcp.tool()
+    @_tool
     def coros_raw(tool: str, arguments: dict[str, Any] | None = None, max_chars: int = 15000) -> dict[str, Any]:
         """Call a read-only COROS tool directly for data the other tools don't cover, e.g. queryActivityLapData,
         queryTrainingSchedule, queryWorkoutLibrary, queryHealthCheckTimeSeries, queryStressTimeSeries, querySleepHrv.
@@ -514,7 +539,7 @@ if _PROVIDER == "garmin":
     _RAW_NONE = {"profile": "get_user_profile_settings", "heart_rate_zones": "get_heart_rate_zones"}
     _RAW_ACTIVITY = {"activity": "get_activity", "activity_workouts": "get_activity_workouts"}
 
-    @mcp.tool()
+    @_tool
     def garmin_raw(endpoint: str, start_date: str | None = None, end_date: str | None = None,
                    activity_id: int | None = None, max_chars: int = 15000) -> dict[str, Any]:
         """Raw Garmin Personal API response, for data the other tools don't cover or to inspect field names.

@@ -141,9 +141,9 @@ class _Handler(BaseHTTPRequestHandler):
             elif path == "/api/settings":
                 self._json(200, settings_state())
             elif path == "/api/chats":
-                self._json(200, {"chats": chats.listing(), "questions": chats.open_questions()})
+                self._json(200, js_safe({"chats": chats.listing(), "questions": chats.open_questions()}))
             elif path.startswith("/api/chat/"):
-                self._json(200, chats.get(path.removeprefix("/api/chat/")))
+                self._json(200, js_safe(chats.get(path.removeprefix("/api/chat/"))))
             elif path.startswith("/api/view/"):
                 self._json(200, js_safe(_view(path, urllib.parse.parse_qs(query))))
             elif path == "/healthz":
@@ -173,7 +173,7 @@ class _Handler(BaseHTTPRequestHandler):
             return
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
-            self._json(200, _post(path, body if isinstance(body, dict) else {}))
+            self._json(200, js_safe(_post(path, body if isinstance(body, dict) else {})))
         except _UnknownAction:
             self._json(404, {"error": f"unknown action {path}"})
         except Exception as exc:  # noqa: BLE001 - shown on the Settings tab
